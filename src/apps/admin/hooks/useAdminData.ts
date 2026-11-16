@@ -1045,6 +1045,93 @@ export function useAdminData(supabaseReady: boolean) {
     [saveNegocioConfig]
   );
 
+  const crearSede = useCallback(
+    async (input: { nombre: string; direccion: string; telefono: string }) => {
+      const newSede: Sede = {
+        id: `sede-${Date.now()}`,
+        negocio_id: negocio.id,
+        nombre: input.nombre,
+        direccion: input.direccion,
+        telefono: input.telefono,
+        activo: true,
+        created_at: new Date().toISOString(),
+      };
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        const { data } = await supabase
+          .from('sedes')
+          .insert({
+            negocio_id: negocio.id,
+            nombre: input.nombre,
+            direccion: input.direccion,
+            telefono: input.telefono,
+            activo: true,
+          })
+          .select()
+          .single();
+        if (data) newSede.id = String((data as Record<string, unknown>).id);
+      }
+      persistStore({ ...store, sedes: [...store.sedes, newSede] });
+      notify(`Sede "${input.nombre}" creada.`);
+    },
+    [negocio.id, notify, persistStore, store, supabaseReady]
+  );
+
+  const actualizarSede = useCallback(
+    async (id: string, input: { nombre: string; direccion: string; telefono: string }) => {
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase
+          .from('sedes')
+          .update({
+            nombre: input.nombre,
+            direccion: input.direccion,
+            telefono: input.telefono,
+          })
+          .eq('id', id);
+      }
+      persistStore({
+        ...store,
+        sedes: store.sedes.map((s) => (s.id === id ? { ...s, ...input } : s)),
+      });
+      notify('Sede actualizada.');
+    },
+    [notify, persistStore, store, supabaseReady]
+  );
+
+  const toggleSede = useCallback(
+    async (id: string) => {
+      const target = store.sedes.find((s) => s.id === id);
+      if (!target) return;
+      const nextActive = !target.activo;
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase.from('sedes').update({ activo: nextActive }).eq('id', id);
+      }
+      persistStore({
+        ...store,
+        sedes: store.sedes.map((s) => (s.id === id ? { ...s, activo: nextActive } : s)),
+      });
+      notify(nextActive ? 'Sede activada.' : 'Sede pausada.');
+    },
+    [notify, persistStore, store, supabaseReady]
+  );
+
+  const eliminarSede = useCallback(
+    async (id: string) => {
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase.from('sedes').delete().eq('id', id);
+      }
+      persistStore({
+        ...store,
+        sedes: store.sedes.filter((s) => s.id !== id),
+      });
+      notify('Sede eliminada.');
+    },
+    [notify, persistStore, store, supabaseReady]
+  );
+
   return {
     loading,
     negocio,
@@ -1073,5 +1160,9 @@ export function useAdminData(supabaseReady: boolean) {
     toggleCajero,
     saveNegocioConfig,
     updateNiveles,
+    crearSede,
+    actualizarSede,
+    toggleSede,
+    eliminarSede,
   };
 }

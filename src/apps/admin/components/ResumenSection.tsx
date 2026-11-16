@@ -46,13 +46,13 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
   const [reactivating, setReactivating] = useState(false);
 
   const stats = useMemo(() => {
-    const mult = periodo === 'semana' ? 0.3 : periodo === 'mes' ? 1 : 1.8;
-    const totalClientes = Math.max(clientes.length, 142);
+    const mult = periodo === 'semana' ? 0.3 : periodo === 'mes' ? 1 : 1;
+    const totalClientes = clientes.length;
     const totalVisitas = Math.round(
-      Math.max(clientes.reduce((acc, c) => acc + c.total_visitas, 0), 864) * mult
+      clientes.reduce((acc, c) => acc + c.total_visitas, 0) * mult
     );
     const totalCanjes = Math.round(
-      Math.max(clientes.reduce((acc, c) => acc + c.canjes_historicos, 0), 58) * mult
+      clientes.reduce((acc, c) => acc + c.canjes_historicos, 0) * mult
     );
 
     const avgRating =

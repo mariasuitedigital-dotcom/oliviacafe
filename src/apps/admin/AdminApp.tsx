@@ -113,6 +113,10 @@ const AdminWorkspace: React.FC = () => {
     toggleCajero,
     saveNegocioConfig,
     updateNiveles,
+    crearSede,
+    actualizarSede,
+    toggleSede,
+    eliminarSede,
   } = useAdminData(supabaseReady);
 
   // Flujo único: Clave de 8 dígitos creada por Root + OTP primer ingreso
@@ -466,6 +470,10 @@ const AdminWorkspace: React.FC = () => {
                     onCreateCajero={crearCajero}
                     onResetCajeroOtp={resetCajeroOtp}
                     onToggleCajero={toggleCajero}
+                    onCreateSede={crearSede}
+                    onUpdateSede={actualizarSede}
+                    onToggleSede={toggleSede}
+                    onDeleteSede={eliminarSede}
                   />
                 )}
 

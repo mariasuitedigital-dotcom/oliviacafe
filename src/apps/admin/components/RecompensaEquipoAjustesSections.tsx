@@ -4,9 +4,12 @@ import {
   Award,
   Check,
   Copy,
+  Edit3,
   KeyRound,
   MonitorSmartphone,
   Palette,
+  Pause,
+  Play,
   Plus,
   RefreshCw,
   Save,
@@ -14,6 +17,7 @@ import {
   Sparkles,
   Star,
   Store,
+  Trash2,
   UserCheck,
   UserPlus,
   UserX,
@@ -203,6 +207,10 @@ interface EquipoSectionProps {
   }) => Promise<void>;
   onResetCajeroOtp: (id: string) => Promise<void>;
   onToggleCajero: (id: string) => void;
+  onCreateSede: (input: { nombre: string; direccion: string; telefono: string }) => Promise<void>;
+  onUpdateSede: (id: string, input: { nombre: string; direccion: string; telefono: string }) => Promise<void>;
+  onToggleSede: (id: string) => Promise<void>;
+  onDeleteSede: (id: string) => Promise<void>;
 }
 
 export const EquipoSection: React.FC<EquipoSectionProps> = ({
@@ -213,6 +221,10 @@ export const EquipoSection: React.FC<EquipoSectionProps> = ({
   onCreateCajero,
   onResetCajeroOtp,
   onToggleCajero,
+  onCreateSede,
+  onUpdateSede,
+  onToggleSede,
+  onDeleteSede,
 }) => {
   const [newDeviceName, setNewDeviceName] = useState('');
   const [newDeviceSede, setNewDeviceSede] = useState(sedes[0]?.id || '');
@@ -221,6 +233,15 @@ export const EquipoSection: React.FC<EquipoSectionProps> = ({
   const [newCajeroPhone, setNewCajeroPhone] = useState('');
   const [newCajeroClave, setNewCajeroClave] = useState(() => generateNumericDigits(6));
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Sede creation & edit state
+  const [newSedeName, setNewSedeName] = useState('');
+  const [newSedeDireccion, setNewSedeDireccion] = useState('');
+  const [newSedeTelefono, setNewSedeTelefono] = useState('');
+  const [editingSedeId, setEditingSedeId] = useState<string | null>(null);
+  const [editSedeName, setEditSedeName] = useState('');
+  const [editSedeDireccion, setEditSedeDireccion] = useState('');
+  const [editSedeTelefono, setEditSedeTelefono] = useState('');
 
   const handleCopy = async (code: string) => {
     try {
@@ -253,6 +274,36 @@ export const EquipoSection: React.FC<EquipoSectionProps> = ({
     setNewCajeroName('');
     setNewCajeroPhone('');
     setNewCajeroClave(generateNumericDigits(6));
+  };
+
+  const handleAddSede = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSedeName.trim()) return;
+    await onCreateSede({
+      nombre: newSedeName.trim(),
+      direccion: newSedeDireccion.trim(),
+      telefono: newSedeTelefono.trim(),
+    });
+    setNewSedeName('');
+    setNewSedeDireccion('');
+    setNewSedeTelefono('');
+  };
+
+  const handleStartEditSede = (s: Sede) => {
+    setEditingSedeId(s.id);
+    setEditSedeName(s.nombre);
+    setEditSedeDireccion(s.direccion || '');
+    setEditSedeTelefono(s.telefono || '');
+  };
+
+  const handleSaveEditSede = async (id: string) => {
+    if (!editSedeName.trim()) return;
+    await onUpdateSede(id, {
+      nombre: editSedeName.trim(),
+      direccion: editSedeDireccion.trim(),
+      telefono: editSedeTelefono.trim(),
+    });
+    setEditingSedeId(null);
   };
 
   return (
@@ -462,23 +513,163 @@ export const EquipoSection: React.FC<EquipoSectionProps> = ({
         </form>
       </section>
 
-      {/* Sedes */}
-      <section className="rounded-3xl bg-white p-6 border border-black/5 shadow-sm space-y-3">
-        <div className="flex items-center gap-2">
-          <Store className="w-5 h-5 text-[#0F4C45]" />
-          <h3 className="text-sm font-bold text-[#14201E]">Sedes Activas ({sedes.length})</h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {sedes.map((s) => (
-            <div key={s.id} className="rounded-2xl bg-[#F7F9F8] p-4 border border-black/5">
-              <p className="text-sm font-bold text-[#14201E]">{s.nombre}</p>
-              <p className="text-xs text-[#546560] mt-0.5">{s.direccion || 'Lima, Perú'}</p>
-              <p className="text-xs text-[#0F4C45] font-semibold mt-1 tabular-nums">
-                {s.telefono || 'Sin teléfono'}
-              </p>
+      {/* Sedes (Gestión Completa: Crear, Editar, Pausar/Activar, Eliminar) */}
+      <section className="rounded-3xl bg-white p-6 border border-black/5 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Store className="w-5 h-5 text-[#0F4C45]" />
+            <div>
+              <h3 className="text-base font-bold text-[#14201E]">Sedes y Locales ({sedes.length})</h3>
+              <p className="text-xs text-[#546560]">Administra las sucursales, direcciones, teléfonos y estado operativo.</p>
             </div>
-          ))}
+          </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {sedes.map((s) => {
+            const isEditing = editingSedeId === s.id;
+            const activo = s.activo ?? true;
+            return (
+              <div key={s.id} className="rounded-2xl bg-[#F7F9F8] p-4 border border-black/5 space-y-3">
+                {isEditing ? (
+                  <div className="space-y-2.5">
+                    <input
+                      type="text"
+                      value={editSedeName}
+                      onChange={(e) => setEditSedeName(e.target.value)}
+                      placeholder="Nombre de sede"
+                      className="w-full rounded-xl bg-white border border-black/10 px-3 py-2 text-xs font-bold text-[#14201E]"
+                      required
+                    />
+                    <input
+                      type="text"
+                      value={editSedeDireccion}
+                      onChange={(e) => setEditSedeDireccion(e.target.value)}
+                      placeholder="Dirección"
+                      className="w-full rounded-xl bg-white border border-black/10 px-3 py-2 text-xs text-[#14201E]"
+                    />
+                    <input
+                      type="text"
+                      value={editSedeTelefono}
+                      onChange={(e) => setEditSedeTelefono(e.target.value)}
+                      placeholder="Teléfono"
+                      className="w-full rounded-xl bg-white border border-black/10 px-3 py-2 text-xs text-[#14201E]"
+                    />
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingSedeId(null)}
+                        className="rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-[#546560] border border-black/10"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleSaveEditSede(s.id)}
+                        className="rounded-xl bg-[#0F4C45] px-3.5 py-1.5 text-xs font-bold text-white"
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-[#14201E]">{s.nombre}</p>
+                          <span
+                            className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${
+                              activo ? 'bg-[#E8F1EE] text-[#0F4C45]' : 'bg-[#FEF6E0] text-[#7A5600]'
+                            }`}
+                          >
+                            {activo ? 'Activa' : 'Pausada'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#546560] mt-0.5">{s.direccion || 'Lima, Perú'}</p>
+                        <p className="text-xs text-[#0F4C45] font-semibold mt-1 tabular-nums">
+                          {s.telefono || 'Sin teléfono'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-black/5">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditSede(s)}
+                          className="inline-flex items-center gap-1 rounded-xl bg-white px-3 py-1.5 text-xs font-bold text-[#14201E] border border-black/10 hover:bg-[#E8F1EE]"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-[#0F4C45]" />
+                          <span>Editar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void onToggleSede(s.id)}
+                          className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold border ${
+                            activo
+                              ? 'bg-white text-[#7A5600] border-black/10 hover:bg-[#FEF6E0]'
+                              : 'bg-white text-[#0F4C45] border-black/10 hover:bg-[#E8F1EE]'
+                          }`}
+                        >
+                          {activo ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                          <span>{activo ? 'Pausar' : 'Activar'}</span>
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => void onDeleteSede(s.id)}
+                        className="rounded-xl bg-white p-2 text-red-700 border border-red-200 hover:bg-red-50"
+                        title="Eliminar sede"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <form onSubmit={handleAddSede} className="rounded-2xl bg-[#F7F9F8] p-4 border border-black/5 space-y-3">
+          <p className="text-xs font-bold text-[#14201E]">Nueva Sede / Sucursal</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <input
+              type="text"
+              value={newSedeName}
+              onChange={(e) => setNewSedeName(e.target.value)}
+              placeholder="Nombre comercial (ej. Sede Surco)"
+              className="rounded-xl bg-white border border-black/10 px-3.5 py-2.5 text-xs min-h-[42px]"
+              required
+            />
+            <input
+              type="text"
+              value={newSedeDireccion}
+              onChange={(e) => setNewSedeDireccion(e.target.value)}
+              placeholder="Dirección (ej. Av. Primavera 450)"
+              className="rounded-xl bg-white border border-black/10 px-3.5 py-2.5 text-xs min-h-[42px]"
+            />
+            <input
+              type="text"
+              value={newSedeTelefono}
+              onChange={(e) => setNewSedeTelefono(e.target.value)}
+              placeholder="Teléfono (ej. +51 1 223 4455)"
+              className="rounded-xl bg-white border border-black/10 px-3.5 py-2.5 text-xs min-h-[42px]"
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#0F4C45] px-4 py-2.5 text-xs font-bold text-white min-h-[42px]"
+            >
+              <Plus className="w-4 h-4 text-[#F2B632]" />
+              <span>Crear nueva sede</span>
+            </button>
+          </div>
+        </form>
       </section>
     </div>
   );
