@@ -1,0 +1,37 @@
+{
+  "rewrites": [
+    { "source": "/c/:path*", "destination": "/c/index.html" },
+    { "source": "/caja/:path*", "destination": "/caja/index.html" },
+    { "source": "/admin/:path*", "destination": "/admin/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/c/sw.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/c/" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/caja/sw.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/caja/" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/admin/sw.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/admin/" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/(.*)/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json; charset=utf-8" },
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
+    }
+  ]
+}

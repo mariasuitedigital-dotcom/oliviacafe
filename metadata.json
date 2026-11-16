@@ -1,0 +1,6 @@
+{
+  "name": "Aitama Lealtad",
+  "description": "Plataforma multi-negocio de cartilla de lealtad digital con tres PWAs independientes (Cliente, Caja POS y Admin), notificaciones Web Push y automatizaciones por WhatsApp.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

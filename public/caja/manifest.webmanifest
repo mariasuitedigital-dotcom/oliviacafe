@@ -1,0 +1,33 @@
+{
+  "id": "/caja/",
+  "name": "Olivia Caja",
+  "short_name": "Olivia Caja",
+  "description": "Terminal POS para sellar cartillas y canjear premios y cupones en Olivia Café.",
+  "start_url": "/caja",
+  "scope": "/caja/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0F4C45",
+  "background_color": "#DCE3DE",
+  "lang": "es-PE",
+  "icons": [
+    {
+      "src": "/icons/pos-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pos-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/pos-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "id": "/admin/",
+  "name": "Olivia Admin",
+  "short_name": "OliviaAdmin",
+  "description": "Panel ejecutivo multi-sede de Olivia Café: clientes, campañas y WhatsApp.",
+  "start_url": "/admin",
+  "scope": "/admin/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0F4C45",
+  "background_color": "#DCE3DE",
+  "lang": "es-PE",
+  "icons": [
+    {
+      "src": "/icons/admin-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/admin-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/admin-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,137 @@
+{
+  "name": "Olivia Café · 03 Inbound Evolution (Bajas BAJA/STOP y Encuestas 1-5)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "olivia-whatsapp-inbound",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-webhook-inbound",
+      "name": "Webhook Entrante Evolution",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst texto = String(body.texto || body.data?.message?.conversation || '').trim();\nconst upper = texto.toUpperCase();\nconst stopWords = ['BAJA', 'STOP', 'SALIR', 'NO MAS', 'NO MÁS', 'CANCELAR'];\nconst esBaja = stopWords.some(w => upper === w || upper.startsWith(w + ' '));\nconst esEncuesta = /^[1-5]$/.test(texto);\nconst calificacion = esEncuesta ? Number(texto) : null;\nconst instance = body.instance || 'olivia-lima-wa';\nconst rawPhone = String(body.celular || body.data?.key?.remoteJid || '').replace(/\\D/g, '').slice(-9);\nconst numeroWa = rawPhone.length === 9 ? `51${rawPhone}` : rawPhone;\n\nreturn [{\n  json: {\n    negocio_id: body.negocio_id || null,\n    instance,\n    numero_wa: numeroWa,\n    celular_e164: numeroWa ? `+${numeroWa}` : '',\n    texto,\n    es_baja: esBaja,\n    es_encuesta: esEncuesta,\n    calificacion,\n    es_promotor: calificacion !== null && calificacion >= 4\n  }\n}];"
+      },
+      "id": "node-classify-inbound",
+      "name": "Clasificar BAJA vs Encuesta 1-5",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.es_baja }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-baja",
+      "name": "¿Pidió BAJA?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL + '/message/sendText/' + $json.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero_wa, text: 'Listo, confirmamos tu baja de avisos por WhatsApp en Olivia Café. Tus sellos siguen activos en tu cartilla web.' }) }}",
+        "options": {}
+      },
+      "id": "node-reply-baja",
+      "name": "Confirmar Baja por WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 140]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.es_encuesta }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-encuesta",
+      "name": "¿Respondió Encuesta 1-5?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL + '/message/sendText/' + $json.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero_wa, text: $json.es_promotor ? '💛 ¡Muchas gracias por tu excelente calificación! Si nos dejas tu reseña en Google Maps sumas +10 pts bonus: https://maps.google.com/?q=Olivia+Cafe+Miraflores+Lima' : 'Gracias por tu honestidad. Nuestro equipo de Olivia Café revisará tu comentario en privado para mejorar tu próxima visita.' }) }}",
+        "options": {}
+      },
+      "id": "node-reply-encuesta",
+      "name": "Responder según Estrellas (Maps o Privado)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Entrante Evolution": {
+      "main": [[{ "node": "Clasificar BAJA vs Encuesta 1-5", "type": "main", "index": 0 }]]
+    },
+    "Clasificar BAJA vs Encuesta 1-5": {
+      "main": [
+        [
+          { "node": "¿Pidió BAJA?", "type": "main", "index": 0 },
+          { "node": "¿Respondió Encuesta 1-5?", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "¿Pidió BAJA?": {
+      "main": [[{ "node": "Confirmar Baja por WhatsApp", "type": "main", "index": 0 }], []]
+    },
+    "¿Respondió Encuesta 1-5?": {
+      "main": [[{ "node": "Responder según Estrellas (Maps o Privado)", "type": "main", "index": 0 }], []]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "America/Lima"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}

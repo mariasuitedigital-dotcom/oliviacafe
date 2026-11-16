@@ -1,0 +1,142 @@
+{
+  "name": "Olivia Café · 01 Outbox Router (Push primero + WhatsApp Evolution)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "olivia-outbox",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-webhook-outbox",
+      "name": "Webhook Outbox Supabase",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst cliente = body.cliente || {};\nconst negocio = body.negocio || {};\nconst payload = body.payload || {};\nconst tipo = body.tipo_evento || 'sello_confirmado';\n\n// Verificar consentimiento y ausencia de baja\nconst optInWa = Boolean(cliente.consentimiento_whatsapp) && !Boolean(cliente.baja_whatsapp);\nconst rawPhone = String(cliente.celular || payload.celular || '').replace(/\\D/g, '');\nconst numeroWa = rawPhone.length === 9 ? `51${rawPhone}` : rawPhone;\n\n// Calcular hora actual en America/Lima (UTC-5)\nconst nowLima = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Lima' }));\nconst mins = nowLima.getHours() * 60 + nowLima.getMinutes();\nconst dentroHorario = mins >= 9 * 60 && mins <= 20 * 60;\n\n// Jitter anti-ban aleatorio (8 a 25 segundos)\nconst delaySegundos = Math.floor(Math.random() * 18) + 8;\n\nconst nombre = cliente.nombre || payload.nombre || 'Amig@';\nconst sellos = payload.sellos_actuales ?? 1;\nconst falta = payload.falta ?? 1;\nconst premio = payload.premio || negocio.nombre_premio || 'Café de Especialidad gratis';\nconst url = body.cartilla_url || 'https://oliviacafe.pe/c/olivia';\n\nconst plantillas = {\n  cliente_registrado: `¡Hola ${nombre}! Bienvenido a Olivia Café ☕ Ya tienes 1 sello de bienvenida. Mira tu cartilla aquí: ${url}. Responde BAJA para no recibir más.`,\n  sello_confirmado: `¡${nombre}, te falta solo ${falta} sello para tu ${premio} gratis en Olivia Café!`,\n  premio_listo: `🎉 ¡Felicidades, ${nombre}! Completaste ${sellos} sellos. Tu ${premio} te espera en Olivia Café. Muestra tu QR en caja. Responde BAJA para no recibir más.`,\n  cumpleanos_hoy: `🎂 ¡Feliz cumpleaños, ${nombre}! Esta semana Olivia Café te regala una porción de tarta artesanal gratis al mostrar tu cartilla: ${url}. Responde BAJA para no recibir más.`,\n  reactivacion_inactivos: `¡Te extrañamos, ${nombre}! Llevas ${sellos} sellos en tu cartilla de Olivia Café. Vuelve esta semana por tu café favorito. Responde BAJA para no recibir más.`,\n  encuesta_visita: `Hola ${nombre}, ¿cómo estuvo tu café hoy en Olivia Café? Responde del 1 al 5 ⭐. Responde BAJA para no recibir más.`,\n  campana_masiva: payload.mensaje || `¡Novedad en Olivia Café! Mira tu beneficio activo en ${url}. Responde BAJA para no recibir más.`\n};\n\nreturn [{\n  json: {\n    outbox_id: body.outbox_id || null,\n    negocio_id: body.negocio_id,\n    cliente_id: cliente.id || payload.cliente_id || null,\n    tipo_evento: tipo,\n    instance_name: negocio.evolution_instance_name || 'olivia-lima-wa',\n    numero_wa: numeroWa,\n    puede_enviar_wa: optInWa && Boolean(numeroWa) && dentroHorario,\n    dentro_horario: dentroHorario,\n    delay_segundos: delaySegundos,\n    mensaje: body.mensaje || plantillas[tipo] || plantillas.sello_confirmado\n  }\n}];"
+      },
+      "id": "node-prepare-wa",
+      "name": "Preparar Plantilla + Reglas Anti-Spam",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.puede_enviar_wa }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "node-if-send-wa",
+      "name": "¿Permitido enviar WhatsApp?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.delay_segundos }}",
+        "unit": "seconds"
+      },
+      "id": "node-jitter-wait",
+      "name": "Espera Anti-Ban (8-25s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [940, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL + '/message/sendText/' + $json.instance_name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.EVOLUTION_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ number: $json.numero_wa, text: $json.mensaje }) }}",
+        "options": {}
+      },
+      "id": "node-evolution-send",
+      "name": "Evolution API · Enviar Texto",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1180, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL + '/rest/v1/mensajes_log' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ negocio_id: $('Preparar Plantilla + Reglas Anti-Spam').item.json.negocio_id, cliente_id: $('Preparar Plantilla + Reglas Anti-Spam').item.json.cliente_id, canal: 'whatsapp', tipo_evento: $('Preparar Plantilla + Reglas Anti-Spam').item.json.tipo_evento, destinatario: $('Preparar Plantilla + Reglas Anti-Spam').item.json.numero_wa, contenido: $('Preparar Plantilla + Reglas Anti-Spam').item.json.mensaje, estado: 'enviado' }) }}",
+        "options": {}
+      },
+      "id": "node-log-supabase",
+      "name": "Registrar Log en Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1420, 220]
+    }
+  ],
+  "connections": {
+    "Webhook Outbox Supabase": {
+      "main": [[{ "node": "Preparar Plantilla + Reglas Anti-Spam", "type": "main", "index": 0 }]]
+    },
+    "Preparar Plantilla + Reglas Anti-Spam": {
+      "main": [[{ "node": "¿Permitido enviar WhatsApp?", "type": "main", "index": 0 }]]
+    },
+    "¿Permitido enviar WhatsApp?": {
+      "main": [[{ "node": "Espera Anti-Ban (8-25s)", "type": "main", "index": 0 }], []]
+    },
+    "Espera Anti-Ban (8-25s)": {
+      "main": [[{ "node": "Evolution API · Enviar Texto", "type": "main", "index": 0 }]]
+    },
+    "Evolution API · Enviar Texto": {
+      "main": [[{ "node": "Registrar Log en Supabase", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "timezone": "America/Lima"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
