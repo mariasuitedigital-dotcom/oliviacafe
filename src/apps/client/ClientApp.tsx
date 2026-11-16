@@ -7,6 +7,8 @@ import { AppHeader } from '@/src/shared/components/AppHeader';
 import { OfflineIndicator } from '@/src/shared/pwa/OfflineIndicator';
 import { PWAInstallBanner } from '@/src/shared/pwa/PWAInstallBanner';
 import { PortalAccesoView } from '@/src/shared/components/PortalAccesoView';
+import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
+import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
 import { useClientData } from '@/src/apps/client/hooks/useClientData';
 import { CartillaTab } from '@/src/apps/client/components/CartillaTab';
 import { PromosTab } from '@/src/apps/client/components/PromosTab';
@@ -27,11 +29,12 @@ const ClientAuthAndShell: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { negocio } = useTheme();
-  const { user, role, clientSession, signOut } = useAuth();
+  const { user, role, clientSession, signOut, supabaseReady } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ClientTab>(() =>
     resolveTabFromPath(location.pathname)
   );
+  const [rootModalOpen, setRootModalOpen] = useState(false);
 
   useEffect(() => {
     const pathTab = resolveTabFromPath(location.pathname);

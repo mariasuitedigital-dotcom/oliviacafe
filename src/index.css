@@ -14,8 +14,9 @@
   body {
     font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background-color: var(--brand-tertiary);
-    color: var(--brand-neutral);
-    overscroll-behavior: none;
+    overscroll-behavior-y: auto;
+    touch-action: manipulation;
+    -webkit-overflow-scrolling: touch;
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     min-height: 100dvh;

@@ -75,9 +75,39 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = ({ clientOnly =
   const [heroScene, setHeroScene] = useState<HeroVisualScene>('barra');
   const [previewStamps, setPreviewStamps] = useState<number>(6);
 
-  // Triple-click secreto en el logo para abrir acceso de Negocio (Caja POS / Admin)
+  const [logoTapCount, setLogoTapCount] = useState<number>(0);
   const logoTapCountRef = useRef<number>(0);
   const logoTapTimerRef = useRef<number | null>(null);
+
+  const handleSecretLogoClick = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.stopPropagation();
+
+    logoTapCountRef.current += 1;
+    setLogoTapCount(logoTapCountRef.current);
+
+    try {
+      if (navigator.vibrate) navigator.vibrate(35);
+    } catch {
+      // Ignorar
+    }
+
+    if (logoTapTimerRef.current) {
+      window.clearTimeout(logoTapTimerRef.current);
+    }
+
+    if (logoTapCountRef.current >= 3) {
+      logoTapCountRef.current = 0;
+      setLogoTapCount(0);
+      setErrorMsg(null);
+      setActiveModal('negocio-hub');
+      return;
+    }
+
+    logoTapTimerRef.current = window.setTimeout(() => {
+      logoTapCountRef.current = 0;
+      setLogoTapCount(0);
+    }, 3500);
+  };
 
   // Registro Cliente
   const [nombre, setNombre] = useState('');
@@ -130,26 +160,6 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = ({ clientOnly =
       if (logoTapTimerRef.current) window.clearTimeout(logoTapTimerRef.current);
     };
   }, []);
-
-  const handleSecretLogoClick = () => {
-    if (clientOnly) return;
-
-    logoTapCountRef.current += 1;
-    if (logoTapTimerRef.current) {
-      window.clearTimeout(logoTapTimerRef.current);
-    }
-
-    if (logoTapCountRef.current >= 3) {
-      logoTapCountRef.current = 0;
-      setErrorMsg(null);
-      setActiveModal('negocio-hub');
-      return;
-    }
-
-    logoTapTimerRef.current = window.setTimeout(() => {
-      logoTapCountRef.current = 0;
-    }, 1500);
-  };
 
   const cleanDigits = (raw: string) => raw.replace(/\D/g, '').replace(/^51/, '').slice(0, 9);
   const regDigits = cleanDigits(telefono);
@@ -443,13 +453,26 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = ({ clientOnly =
 
   return (
     <div className="min-h-dvh bg-[#F4F6F4] text-[#14201E] flex flex-col">
+      {/* Toast visual en móvil al dar toques al logo */}
+      {logoTapCount > 0 && logoTapCount < 3 && (
+        <div
+          role="status"
+          className="fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-2xl bg-[#14201E] text-white px-4 py-2.5 text-xs font-bold shadow-2xl flex items-center gap-2 border border-white/20 animate-bounce"
+        >
+          <ShieldCheck className="w-4 h-4 text-[#F2B632]" />
+          <span>Acceso Equipo: {logoTapCount} de 3 toques (da {3 - logoTapCount} más)</span>
+        </div>
+      )}
+
       {/* TOP BAR CONTRACT: Logo con acceso oculto (3 clics), enlaces y CTA */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-black/5 pwa-safe-top">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={handleSecretLogoClick}
-            className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-[#14201E] whitespace-nowrap shrink-0 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C45] rounded-xl pr-2"
+            onTouchEnd={handleSecretLogoClick}
+            className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-[#14201E] whitespace-nowrap shrink-0 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C45] rounded-xl pr-2 touch-manipulation"
+            title="Toca 3 veces para acceso de equipo/dueño/root"
           >
             <span className="w-8 h-8 rounded-full bg-[#0F4C45] flex items-center justify-center border border-[#F2B632]">
               <Coffee className="w-4 h-4 text-[#F2B632]" />
@@ -466,7 +489,32 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = ({ clientOnly =
             </a>
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Botón de recarga rápida para móvil */}
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              title="Recargar página / Actualizar datos"
+              className="rounded-xl p-2 text-[#546560] hover:text-[#0F4C45] hover:bg-[#F3F6F4] transition active:scale-95"
+              aria-label="Recargar página"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+
+            {/* Acceso directo a Equipo / Dueño / Root */}
+            <button
+              type="button"
+              onClick={() => {
+                setErrorMsg(null);
+                setActiveModal('negocio-hub');
+              }}
+              title="Acceso Equipo (Caja POS / Dueño / Root)"
+              className="rounded-xl p-2 text-[#546560] hover:text-[#0F4C45] hover:bg-[#F3F6F4] transition active:scale-95"
+              aria-label="Acceso Equipo"
+            >
+              <Lock className="w-4 h-4" />
+            </button>
+
             <button
               type="button"
               onClick={() => openModal('cliente-register')}
@@ -1084,6 +1132,21 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = ({ clientOnly =
                       <div>
                         <p className="text-sm font-bold">Panel Admin</p>
                         <p className="text-[11px] text-[#4A5A56]">Gestión de dueño y campañas</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveModal(null);
+                        setRootModalOpen(true);
+                      }}
+                      className="rounded-2xl bg-[#0F4C45] text-white p-4 text-left hover:opacity-95 transition flex flex-col gap-2 min-h-[88px] sm:col-span-2"
+                    >
+                      <ShieldCheck className="w-5 h-5 text-[#F2B632]" />
+                      <div>
+                        <p className="text-sm font-bold">Consola Root (Desarrollador)</p>
+                        <p className="text-[11px] text-white/75">Aprovisionar dueños con clave maestra (1982)</p>
                       </div>
                     </button>
                   </div>
