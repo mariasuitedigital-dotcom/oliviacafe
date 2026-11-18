@@ -25,6 +25,8 @@ import { QrScannerModal } from '@/src/apps/pos/components/QrScannerModal';
 import { SellarTab } from '@/src/apps/pos/components/SellarTab';
 import { ColaTab } from '@/src/apps/pos/components/ColaTab';
 import { CanjesTab } from '@/src/apps/pos/components/CanjesTab';
+import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
+import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
 
 interface PairedDevice {
   id: string;
@@ -65,6 +67,7 @@ const PosWorkspace: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<PosTab>('sellar');
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [rootModalOpen, setRootModalOpen] = useState(false);
 
   const {
     isOnline,
@@ -618,6 +621,18 @@ const PosWorkspace: React.FC = () => {
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onDecoded={handleDecodedQr}
+      />
+
+      <div className={posSession ? 'pb-16' : ''}>
+        <MarIaDeveloperFooter onTriggerRoot={() => setRootModalOpen(true)} />
+      </div>
+
+      <RootProvisioningModal
+        open={rootModalOpen}
+        negocioId={negocio.id}
+        negocioNombre={negocio.nombre}
+        supabaseReady={supabaseReady}
+        onClose={() => setRootModalOpen(false)}
       />
 
       <OfflineIndicator message="Caja sin conexión — los sellos se guardarán en IndexedDB al reconectar." />

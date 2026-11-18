@@ -68,7 +68,7 @@ const ClientAuthAndShell: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <>
-        <PortalAccesoView clientOnly />
+        <PortalAccesoView />
         <OfflineIndicator />
       </>
     );
@@ -207,6 +207,18 @@ const ClientAuthAndShell: React.FC = () => {
           })}
         </div>
       </nav>
+
+      <div className="pb-16">
+        <MarIaDeveloperFooter onTriggerRoot={() => setRootModalOpen(true)} />
+      </div>
+
+      <RootProvisioningModal
+        open={rootModalOpen}
+        negocioId={negocio.id}
+        negocioNombre={negocio.nombre}
+        supabaseReady={supabaseReady}
+        onClose={() => setRootModalOpen(false)}
+      />
 
       <OfflineIndicator />
     </div>

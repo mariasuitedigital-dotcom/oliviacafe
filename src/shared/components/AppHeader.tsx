@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { Coffee, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Coffee, LogOut, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/src/shared/theme/ThemeProvider';
 import { PWAInstallBanner } from '@/src/shared/pwa/PWAInstallBanner';
 
@@ -33,23 +33,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<number | null>(null);
-  const [tapCount, setTapCount] = useState(0);
 
   const handleLogoTap = () => {
     tapCountRef.current += 1;
-    setTapCount(tapCountRef.current);
-
-    try {
-      if (navigator.vibrate) navigator.vibrate(30);
-    } catch {
-      // Ignorar
-    }
 
     if (tapTimerRef.current) window.clearTimeout(tapTimerRef.current);
 
     if (tapCountRef.current >= 3) {
       tapCountRef.current = 0;
-      setTapCount(0);
       if (onTriggerRoot) {
         onTriggerRoot();
       } else {
@@ -60,28 +51,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
     tapTimerRef.current = window.setTimeout(() => {
       tapCountRef.current = 0;
-      setTapCount(0);
-    }, 3500);
+    }, 2500);
   };
 
   return (
     <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-black/5 pwa-safe-top pwa-ui-noselect">
-      {tapCount > 0 && tapCount < 3 && (
-        <div
-          role="status"
-          className="fixed top-16 left-1/2 -translate-x-1/2 z-50 rounded-2xl bg-[#14201E] text-white px-4 py-2 text-xs font-bold shadow-2xl flex items-center gap-2 border border-white/20"
-        >
-          <ShieldCheck className="w-4 h-4 text-[#F2B632]" />
-          <span>Acceso Equipo: {tapCount} de 3 toques</span>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         <button
           type="button"
           onClick={handleLogoTap}
           className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C45] rounded-xl pr-2 touch-manipulation select-none"
-          title="Toca 3 veces para acceso de equipo/desarrollador"
+          aria-label={negocio.nombre}
         >
           <div className="w-9 h-9 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center shrink-0 border-2 border-[var(--brand-secondary)]/60">
             {negocio.logo_url ? (
