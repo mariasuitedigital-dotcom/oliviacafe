@@ -255,7 +255,12 @@ export function useClientData() {
     setError(null);
     const supabase = getSupabaseClient();
 
-    if (supabase && supabaseReady && clientSession?.cliente_id) {
+    if (
+      supabase &&
+      supabaseReady &&
+      clientSession?.cliente_id &&
+      !clientSession.cliente_id.startsWith('demo-')
+    ) {
       try {
         const [{ data: cliData, error: cliErr }, { data: carData, error: carErr }] =
           await Promise.all([
@@ -270,43 +275,45 @@ export function useClientData() {
         if (cliErr) throw cliErr;
         if (carErr) throw carErr;
 
-        if (cliData) setCliente(cliData as Cliente);
-        if (carData) setCartilla(carData as Cartilla);
+        if (cliData && carData) {
+          setCliente(cliData as Cliente);
+          setCartilla(carData as Cartilla);
 
-        const [{ data: sellosData }, { data: canjesData }, { data: promosData }, { data: cuponesData }] =
-          await Promise.all([
-            supabase
-              .from('sellos')
-              .select('*')
-              .eq('cliente_id', clientSession.cliente_id)
-              .order('created_at', { ascending: false })
-              .limit(40),
-            supabase
-              .from('canjes')
-              .select('*')
-              .eq('cliente_id', clientSession.cliente_id)
-              .order('created_at', { ascending: false })
-              .limit(20),
-            supabase
-              .from('promociones')
-              .select('*')
-              .eq('negocio_id', negocio.id)
-              .eq('activa', true)
-              .gt('vigencia_fin', new Date().toISOString())
-              .order('vigencia_fin', { ascending: true }),
-            supabase
-              .from('cupones')
-              .select('*')
-              .eq('cliente_id', clientSession.cliente_id)
-              .order('activado_at', { ascending: false }),
-          ]);
+          const [{ data: sellosData }, { data: canjesData }, { data: promosData }, { data: cuponesData }] =
+            await Promise.all([
+              supabase
+                .from('sellos')
+                .select('*')
+                .eq('cliente_id', clientSession.cliente_id)
+                .order('created_at', { ascending: false })
+                .limit(40),
+              supabase
+                .from('canjes')
+                .select('*')
+                .eq('cliente_id', clientSession.cliente_id)
+                .order('created_at', { ascending: false })
+                .limit(20),
+              supabase
+                .from('promociones')
+                .select('*')
+                .eq('negocio_id', negocio.id)
+                .eq('activa', true)
+                .gt('vigencia_fin', new Date().toISOString())
+                .order('vigencia_fin', { ascending: true }),
+              supabase
+                .from('cupones')
+                .select('*')
+                .eq('cliente_id', clientSession.cliente_id)
+                .order('activado_at', { ascending: false }),
+            ]);
 
-        setSellos((sellosData as Sello[]) || []);
-        setCanjes((canjesData as Canje[]) || []);
-        setPromos((promosData as Promocion[]) || []);
-        setCupones((cuponesData as Cupon[]) || []);
-        setLoading(false);
-        return;
+          setSellos((sellosData as Sello[]) || []);
+          setCanjes((canjesData as Canje[]) || []);
+          setPromos((promosData as Promocion[]) || []);
+          setCupones((cuponesData as Cupon[]) || []);
+          setLoading(false);
+          return;
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error cargando tu cartilla.');
       }
@@ -359,7 +366,7 @@ export function useClientData() {
   // Rotación de token QR cada 30 segundos
   const refreshQrToken = useCallback(async () => {
     const supabase = getSupabaseClient();
-    if (supabase && supabaseReady && cliente) {
+    if (supabase && supabaseReady && cliente && !cliente.id.startsWith('demo-')) {
       try {
         const { data, error: rpcErr } = await supabase.rpc('generar_token_qr', {
           p_negocio_id: negocio.id,
@@ -401,7 +408,7 @@ export function useClientData() {
   // Suscripción Realtime a cartillas para actualizar al instante cuando el cajero sella
   useEffect(() => {
     const supabase = getSupabaseClient();
-    if (!supabase || !supabaseReady || !cliente) return;
+    if (!supabase || !supabaseReady || !cliente || cliente.id.startsWith('demo-')) return;
 
     const channel = supabase
       .channel(`cartilla-live-${cliente.id}`)
@@ -426,7 +433,7 @@ export function useClientData() {
     async (promoId: string): Promise<{ cupon?: Cupon; error?: string }> => {
       if (!cliente) return { error: 'Sesión no disponible' };
       const supabase = getSupabaseClient();
-      if (supabase && supabaseReady) {
+      if (supabase && supabaseReady && !cliente.id.startsWith('demo-')) {
         const { data, error: rpcErr } = await supabase.rpc('activar_promo', {
           p_negocio_id: negocio.id,
           p_promocion_id: promoId,
@@ -482,7 +489,7 @@ export function useClientData() {
       if (!cliente) return;
       setRatedToday(calificacion);
       const supabase = getSupabaseClient();
-      if (supabase && supabaseReady) {
+      if (supabase && supabaseReady && !cliente.id.startsWith('demo-')) {
         await supabase.from('encuestas').insert({
           negocio_id: negocio.id,
           cliente_id: cliente.id,
@@ -515,7 +522,7 @@ export function useClientData() {
     setCartilla(nextCartilla);
 
     const supabase = getSupabaseClient();
-    if (supabase && supabaseReady) {
+    if (supabase && supabaseReady && !cliente.id.startsWith('demo-')) {
       await supabase
         .from('cartillas')
         .update({ puntos_bonus: nextCartilla.puntos_bonus })
@@ -548,7 +555,7 @@ export function useClientData() {
 
     let bonusGiven = false;
     const supabase = getSupabaseClient();
-    if (supabase && supabaseReady) {
+    if (supabase && supabaseReady && !cliente.id.startsWith('demo-')) {
       await supabase
         .from('clientes')
         .update({ consentimiento_push: true })
@@ -644,7 +651,7 @@ export function useClientData() {
       }
 
       const supabase = getSupabaseClient();
-      if (supabase && supabaseReady) {
+      if (supabase && supabaseReady && !cliente.id.startsWith('demo-')) {
         await supabase.from('clientes').update(updates).eq('id', cliente.id);
       } else {
         persistDemoStore({

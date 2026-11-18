@@ -120,7 +120,9 @@ BEGIN
     cliente_id,
     cartilla_id,
     tipo,
-    sellos_otorgados,
+    cantidad,
+    detalle,
+    idempotency_key,
     created_at
   ) VALUES (
     v_negocio_id,
@@ -129,7 +131,10 @@ BEGIN
     v_cartilla_id,
     'visita',
     1,
+    'Consumo en local · Demo',
+    'demo-maria-sello-1',
     now() - interval '1 day'
-  );
+  )
+  ON CONFLICT (negocio_id, idempotency_key) DO NOTHING;
 
 END $$;
