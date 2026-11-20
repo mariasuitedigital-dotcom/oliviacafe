@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
+  ArrowRight,
   Award,
   Check,
   Clock,
@@ -14,11 +15,14 @@ import {
   MessageCircle,
   RefreshCw,
   Share2,
+  ShieldCheck,
   Sparkles,
   Star,
   Sun,
   UserPlus,
+  Wifi,
   X,
+  Zap,
 } from 'lucide-react';
 import type { Cartilla, Cliente } from '@/src/types/database';
 import type { QrTokenState } from '@/src/apps/client/hooks/useClientData';
@@ -272,41 +276,56 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
 
         {/* PASE RÁPIDO QR ROTATIVO 30s (5 cols desktop) */}
         <section
-          className={`lg:col-span-5 rounded-3xl p-6 shadow-sm border border-black/8 transition ${
+          className={`lg:col-span-5 rounded-3xl p-6 shadow-sm border border-black/8 transition space-y-4 ${
             highBrightness ? 'bg-white' : 'bg-[#F7F9F8]'
           }`}
         >
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center justify-between gap-2">
             <div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-[#0F4C45] bg-[#E8F1EE] px-2 py-0.5 rounded-md">
+                  <ShieldCheck className="w-3 h-3" />
+                  Membresía
+                </span>
+                <span className="text-[10px] font-bold text-[#546560]">· Pase Digital VIP</span>
+              </div>
               <h2 className="text-base sm:text-lg font-black text-[#14201E] tracking-tight">
                 Pase Rápido de Caja
               </h2>
               <p className="text-xs text-[#44524E] font-medium">Muestra este código al barista para sellar</p>
             </div>
-            <span className="text-xs font-mono font-black bg-[#E8F1EE] text-[#0F4C45] px-3 py-1.5 rounded-xl border border-[#0F4C45]/20 shadow-xs tabular-nums">
+            <span className="text-xs font-mono font-black bg-gradient-to-r from-[#FFFDF7] to-[#FEF3D8] border-2 border-[#F2B632] text-[#7A5600] px-3 py-1.5 rounded-xl shadow-xs tabular-nums">
               {cartilla.codigo_corto}
             </span>
           </div>
 
-          <div className="my-4 p-4 sm:p-5 rounded-3xl bg-[#F7F9F8] border border-black/10 flex flex-col items-center justify-center shadow-inner">
+          <div className="p-4 sm:p-5 rounded-3xl bg-white border-2 border-[#0F4C45]/20 flex flex-col items-center justify-center shadow-xs relative">
+            {/* Esquinas visuales de encuadre escáner */}
+            <span className="absolute top-2.5 left-2.5 w-3 h-3 border-t-2 border-l-2 border-[#0F4C45]/50 rounded-tl-sm pointer-events-none" />
+            <span className="absolute top-2.5 right-2.5 w-3 h-3 border-t-2 border-r-2 border-[#0F4C45]/50 rounded-tr-sm pointer-events-none" />
+            <span className="absolute bottom-2.5 left-2.5 w-3 h-3 border-b-2 border-l-2 border-[#0F4C45]/50 rounded-bl-sm pointer-events-none" />
+            <span className="absolute bottom-2.5 right-2.5 w-3 h-3 border-b-2 border-r-2 border-[#0F4C45]/50 rounded-br-sm pointer-events-none" />
+
             <QRCodeSVG
               value={qrPayload}
               size={184}
-              bgColor="#F7F9F8"
+              bgColor="#FFFFFF"
               fgColor="#0F4C45"
               level="M"
             />
           </div>
 
           <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="text-[#354440] font-semibold tabular-nums">
-              Código seguro: <strong className="text-sm font-mono font-black text-[#0F4C45]">{qrState.secondsLeft}s</strong>
-            </span>
+            <div className="flex items-center gap-1.5 text-[#354440] font-semibold tabular-nums">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse ring-4 ring-emerald-500/20" />
+              <span>Código seguro:</span>
+              <strong className="text-sm font-mono font-black text-[#0F4C45]">{qrState.secondsLeft}s</strong>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setHighBrightness((v) => !v)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3 py-2 text-xs font-bold text-[#14201E] min-h-[38px] transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3 py-2 text-xs font-bold text-[#14201E] min-h-[38px] transition active:scale-95 cursor-pointer shadow-2xs"
               >
                 <Sun className="w-4 h-4 text-[#F2B632]" />
                 <span>{highBrightness ? 'Brillo máx.' : 'Normal'}</span>
@@ -314,7 +333,7 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
               <button
                 type="button"
                 onClick={onRefreshQr}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3 py-2 text-xs font-bold text-[#0F4C45] min-h-[38px] transition active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3 py-2 text-xs font-bold text-[#0F4C45] min-h-[38px] transition active:scale-95 cursor-pointer shadow-2xs"
                 aria-label="Actualizar código QR"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -325,29 +344,58 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
         </section>
       </div>
 
-      {/* ACCESOS RÁPIDOS: RESERVAR MESA COWORK + VER HISTORIAL */}
+      {/* TARJETAS INTERACTIVAS: COWORKING CON CAFÉ + HISTORIAL DE ACTIVIDAD */}
       {(onOpenEspacios || onOpenHistorial) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <section aria-label="Accesos directos del cliente" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {onOpenEspacios && negocio.coworking_activo !== false && (
             <button
               type="button"
               onClick={onOpenEspacios}
-              className="rounded-2xl bg-white p-4 border border-black/5 shadow-sm flex items-center justify-between gap-3 text-left hover:bg-[#F7F9F8] transition"
+              className="rounded-3xl p-5 sm:p-6 border-2 border-[#0F4C45]/25 bg-gradient-to-br from-[#EBF5F1] via-[#F6FAF8] to-white shadow-sm hover:shadow-md transition active:scale-[0.98] flex flex-col justify-between gap-4 text-left group cursor-pointer"
             >
-              <div className="flex items-center gap-3">
-                <span className="w-10 h-10 rounded-xl bg-[#E8F1EE] text-[#0F4C45] flex items-center justify-center shrink-0">
-                  <Laptop className="w-5 h-5" />
-                </span>
-                <div>
-                  <p className="text-xs font-bold text-[#14201E]">Coworking · ¿Reunión hoy?</p>
-                  <p className="text-[11px] text-[#546560]">
-                    Separa tu mesa de trabajo con consumo mínimo desde la app
-                  </p>
+              <div className="flex items-center justify-between gap-2 w-full">
+                <div className="w-12 h-12 rounded-2xl bg-[#0F4C45] text-[#F2B632] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <Laptop className="w-6 h-6" />
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  <span className="rounded-full bg-[#0F4C45] text-white px-2.5 py-1 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                    <Wifi className="w-3 h-3 text-[#F2B632]" />
+                    Wi-Fi & Mesas
+                  </span>
+                  <span className="rounded-full bg-[#FEF6E0] border border-[#F2B632]/60 text-[#7A5600] px-2 py-0.5 text-[10px] font-black">
+                    100% Consumible
+                  </span>
                 </div>
               </div>
-              <span className="rounded-lg bg-[#0F4C45] text-[#F2B632] px-2.5 py-1 text-[11px] font-bold shrink-0">
-                Reservar →
-              </span>
+
+              <div className="space-y-2">
+                <h3 className="text-base sm:text-lg font-black text-[#14201E] group-hover:text-[#0F4C45] transition-colors leading-snug">
+                  Mesas de Coworking & Reuniones
+                </h3>
+                <p className="text-xs text-[#44524E] font-medium leading-relaxed">
+                  Separa tu mesa con enchufes y conexión de alta velocidad. Tu pago por Yape se descuenta íntegro de tu café o combo en barra.
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/90 border border-black/5 px-2 py-1 text-[10px] font-bold text-[#354440] shadow-2xs">
+                    <Zap className="w-3 h-3 text-[#0F4C45]" /> Enchufes por puesto
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/90 border border-black/5 px-2 py-1 text-[10px] font-bold text-[#354440] shadow-2xs">
+                    <Coffee className="w-3 h-3 text-[#0F4C45]" /> Café de especialidad
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/90 border border-black/5 px-2 py-1 text-[10px] font-bold text-[#354440] shadow-2xs">
+                    <Check className="w-3 h-3 text-[#0F4C45]" /> Reserva Yape in-app
+                  </span>
+                </div>
+              </div>
+
+              <div className="w-full rounded-2xl bg-[#0F4C45] group-hover:bg-[#0B3A34] text-white py-3 px-4 text-xs font-black inline-flex items-center justify-between shadow-xs transition">
+                <span>Reservar mi mesa ahora</span>
+                <span className="inline-flex items-center gap-1 text-[#F2B632]">
+                  <span>Desde S/ 15</span>
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              </div>
             </button>
           )}
 
@@ -355,23 +403,56 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
             <button
               type="button"
               onClick={onOpenHistorial}
-              className="rounded-2xl bg-white p-4 border border-black/5 shadow-sm flex items-center justify-between gap-3 text-left hover:bg-[#F7F9F8] transition"
+              className="rounded-3xl p-5 sm:p-6 border-2 border-[#F2B632]/50 bg-gradient-to-br from-[#FEF6E0] via-[#FFFBF2] to-white shadow-sm hover:shadow-md transition active:scale-[0.98] flex flex-col justify-between gap-4 text-left group cursor-pointer"
             >
-              <div className="flex items-center gap-3">
-                <span className="w-10 h-10 rounded-xl bg-[#FEF6E0] text-[#7A5600] flex items-center justify-center shrink-0">
-                  <History className="w-5 h-5" />
-                </span>
-                <div>
-                  <p className="text-xs font-bold text-[#14201E]">Historial de Sellos y Canjes</p>
-                  <p className="text-[11px] text-[#546560]">
-                    Revisa tus {cartilla.sellos_historicos} sellos acumulados
-                  </p>
+              <div className="flex items-center justify-between gap-2 w-full">
+                <div className="w-12 h-12 rounded-2xl bg-[#F2B632] text-[#14201E] flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                  <History className="w-6 h-6" />
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  <span className="rounded-full bg-[#14201E] text-[#F2B632] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                    <Award className="w-3 h-3 text-[#F2B632]" />
+                    Mi Actividad
+                  </span>
+                  <span className="rounded-full bg-white border border-[#F2B632] text-[#7A5600] px-2 py-0.5 text-[10px] font-black tabular-nums">
+                    {cartilla.sellos_historicos || 0} {cartilla.sellos_historicos === 1 ? 'visita' : 'visitas'}
+                  </span>
                 </div>
               </div>
-              <span className="text-xs font-bold text-[#0F4C45] shrink-0">Ver →</span>
+
+              <div className="space-y-2">
+                <h3 className="text-base sm:text-lg font-black text-[#14201E] group-hover:text-[#7A5600] transition-colors leading-snug">
+                  Historial de Sellos y Canjes
+                </h3>
+                <p className="text-xs text-[#44524E] font-medium leading-relaxed">
+                  Revisa en vivo cada visita registrada en barra, los sellos acumulados y todos los premios que has desbloqueado.
+                </p>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/90 border border-black/5 px-2 py-1 text-[10px] font-bold text-[#354440] shadow-2xs">
+                    <Sparkles className="w-3 h-3 text-[#7A5600]" /> {cartilla.sellos_actuales} / {cartilla.sellos_objetivo} sellos activos
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/90 border border-black/5 px-2 py-1 text-[10px] font-bold text-[#354440] shadow-2xs">
+                    <Gift className="w-3 h-3 text-[#7A5600]" /> {cartilla.canjes_historicos || 0} canjes
+                  </span>
+                  {cartilla.puntos_bonus > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-white/90 border border-black/5 px-2 py-1 text-[10px] font-bold text-[#354440] shadow-2xs">
+                      ⭐ {cartilla.puntos_bonus} pts bonus
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="w-full rounded-2xl bg-white group-hover:bg-[#FFFDF7] border-2 border-[#F2B632] text-[#14201E] py-3 px-4 text-xs font-black inline-flex items-center justify-between shadow-xs transition">
+                <span>Consultar historial completo</span>
+                <span className="inline-flex items-center gap-1 text-[#0F4C45]">
+                  <span>Ver detalle</span>
+                  <ArrowRight className="w-4 h-4" />
+                </span>
+              </div>
             </button>
           )}
-        </div>
+        </section>
       )}
 
       {/* REFIERE A UN AMIGO Y GANAN AMBOS (ESTILO GOLDEN TICKET / CUPÓN VIRAL) */}
