@@ -335,9 +335,9 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
                   <Laptop className="w-5 h-5" />
                 </span>
                 <div>
-                  <p className="text-xs font-bold text-[#14201E]">¿Tienes una reunión hoy?</p>
+                  <p className="text-xs font-bold text-[#14201E]">Coworking · ¿Reunión hoy?</p>
                   <p className="text-[11px] text-[#546560]">
-                    Separa tu mesa cowork con café desde la app
+                    Separa tu mesa de trabajo con consumo mínimo desde la app
                   </p>
                 </div>
               </div>

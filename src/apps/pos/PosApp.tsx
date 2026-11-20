@@ -618,7 +618,7 @@ const PosWorkspace: React.FC = () => {
               { id: 'sellar' as const, label: 'Sellar', icon: QrCode, badge: 0 },
               {
                 id: 'espacios' as const,
-                label: 'Mesas',
+                label: 'Cowork',
                 icon: CalendarClock,
                 badge: pendingYapeOrConfirmCount,
               },

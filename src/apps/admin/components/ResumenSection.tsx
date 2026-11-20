@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Filter,
   Gift,
+  Laptop,
   MessageSquare,
   RefreshCw,
   Send,
@@ -33,7 +34,7 @@ interface ResumenSectionProps {
   encuestas: AdminEncuestaRow[];
   onExportCsv: () => void;
   onNavigateSection: (
-    section: 'clientes' | 'recompensa' | 'promociones' | 'auditoria' | 'carta'
+    section: 'clientes' | 'recompensa' | 'promociones' | 'auditoria' | 'carta' | 'espacios'
   ) => void;
   onReactivateInactive: () => Promise<void>;
   onSaveRoiParams: (updates: {
@@ -554,7 +555,24 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigateSection('espacios')}
+            className="rounded-2xl bg-[#E8F1EE] hover:bg-[#DCE7E3] p-4 text-left flex items-center justify-between gap-3 transition"
+          >
+            <div className="flex items-center gap-3">
+              <Laptop className="w-5 h-5 text-[#0F4C45] shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-[#14201E]">Mesas Coworking</p>
+                <p className="text-[11px] text-[#0F4C45]">
+                  Configurar mesas, Yape y reservas
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-[#0F4C45]">→</span>
+          </button>
+
           <button
             type="button"
             onClick={() => onNavigateSection('recompensa')}

@@ -28,7 +28,7 @@ type ClientTab = 'cartilla' | 'carta' | 'espacios' | 'promos' | 'historial' | 'p
 function resolveTabFromPath(pathname: string): ClientTab {
   if (pathname.includes('/promos')) return 'promos';
   if (pathname.includes('/carta') || pathname.includes('/catalogo')) return 'carta';
-  if (pathname.includes('/espacios')) return 'espacios';
+  if (pathname.includes('/espacios') || pathname.includes('/coworking')) return 'espacios';
   if (pathname.includes('/historial')) return 'historial';
   if (pathname.includes('/perfil')) return 'perfil';
   return 'cartilla';
@@ -371,7 +371,7 @@ const ClientAuthAndShell: React.FC = () => {
             { id: 'carta' as const, label: 'Catálogo', icon: Coffee, badge: 0 },
             {
               id: 'espacios' as const,
-              label: 'Espacios',
+              label: 'Coworking',
               icon: Laptop,
               badge: activeReservasCount,
             },
@@ -384,7 +384,7 @@ const ClientAuthAndShell: React.FC = () => {
                 key={item.id}
                 type="button"
                 onClick={() => handleTabChange(item.id)}
-                className={`relative flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition ${
+                className={`relative flex flex-col items-center justify-center gap-1 text-[10px] sm:text-[11px] font-semibold transition ${
                   active ? 'text-[var(--brand-primary)]' : 'text-[#6A7B76]'
                 }`}
               >
