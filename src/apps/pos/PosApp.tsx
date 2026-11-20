@@ -28,6 +28,7 @@ import { CanjesTab } from '@/src/apps/pos/components/CanjesTab';
 import { AppSplashScreen } from '@/src/shared/components/AppSplashScreen';
 import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
 import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
+import { unlockAudioContext } from '@/src/shared/pwa/welcomeSound';
 
 interface PairedDevice {
   id: string;
@@ -91,6 +92,16 @@ const PosWorkspace: React.FC = () => {
     syncOfflineQueue,
     clearSelection,
   } = usePosWorkspace(posSession, supabaseReady);
+
+  useEffect(() => {
+    const handleUnlock = () => {
+      void unlockAudioContext();
+    };
+    window.addEventListener('pointerdown', handleUnlock, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', handleUnlock);
+    };
+  }, []);
 
   // Auto-cierre por inactividad cuando hay un cajero activo
   useEffect(() => {

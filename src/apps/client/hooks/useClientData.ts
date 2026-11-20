@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/src/shared/auth/AuthContext';
 import { useTheme } from '@/src/shared/theme/ThemeProvider';
 import { getSupabaseClient } from '@/src/shared/lib/supabase';
@@ -6,11 +6,29 @@ import {
   registerClientPushSubscription,
   unregisterClientPushSubscription,
 } from '@/src/shared/pwa/pushSubscription';
+import { playStampFeedbackSound } from '@/src/shared/pwa/welcomeSound';
+import {
+  buildStampEncouragementMessage,
+  DEMO_STAMP_CHANNEL,
+  DEMO_STAMP_STORAGE_EVENT_KEY,
+  showLocalBrowserStampNotification,
+  type DemoStampBroadcastPayload,
+  type StampEventKind,
+} from '@/src/shared/pwa/stampEncouragement';
 import type { Canje, Cartilla, Cliente, Cupon, Promocion, Sello } from '@/src/types/database';
 
 export interface QrTokenState {
   token: string;
   secondsLeft: number;
+}
+
+export interface StampCelebrationState {
+  id: string;
+  kind: StampEventKind;
+  title: string;
+  body: string;
+  badgeText: string;
+  isGoalReached: boolean;
 }
 
 const LOCAL_STATE_PREFIX = 'olivia_client_demo_state_';
@@ -232,12 +250,71 @@ export function useClientData() {
   const [cupones, setCupones] = useState<Cupon[]>([]);
   const [ratedToday, setRatedToday] = useState<number | null>(null);
   const [mapsBonusClaimed, setMapsBonusClaimed] = useState<boolean>(false);
+  const [stampCelebration, setStampCelebration] = useState<StampCelebrationState | null>(null);
+
+  const prevProgressRef = useRef<{
+    clientId: string;
+    sellosActuales: number;
+    canjesHistoricos: number;
+  } | null>(null);
+  const lastBroadcastAtRef = useRef<string | null>(null);
 
   // Token QR rotativo cada 30 segundos
   const [qrState, setQrState] = useState<QrTokenState>({
     token: `OLI-${Math.random().toString(36).slice(2, 10).toUpperCase()}`,
     secondsLeft: 30,
   });
+
+  const dismissStampCelebration = useCallback(() => {
+    setStampCelebration(null);
+  }, []);
+
+  const triggerStampCelebration = useCallback(
+    (params: {
+      kind: StampEventKind;
+      nombreCliente: string;
+      sellosActuales: number;
+      sellosObjetivo: number;
+      cantidadAgregada?: number;
+      notifyIfBackground?: boolean;
+    }) => {
+      const msg = buildStampEncouragementMessage({
+        negocioNombre: negocio.nombre,
+        nombreCliente: params.nombreCliente,
+        sellosActuales: params.sellosActuales,
+        sellosObjetivo: params.sellosObjetivo,
+        nombrePremio: negocio.nombre_premio,
+        cantidadAgregada: params.cantidadAgregada || 1,
+        kind: params.kind,
+      });
+
+      const soundKind =
+        params.kind === 'redeem' ? 'redeem' : msg.isGoalReached ? 'goal' : 'stamp';
+      void playStampFeedbackSound(soundKind);
+
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate(msg.isGoalReached ? [100, 45, 130, 45, 140] : [80, 40, 120]);
+      }
+
+      setStampCelebration({
+        id: `${Date.now()}`,
+        kind: params.kind,
+        title: msg.title,
+        body: msg.body,
+        badgeText: msg.badgeText,
+        isGoalReached: msg.isGoalReached,
+      });
+
+      if (
+        params.notifyIfBackground &&
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'hidden'
+      ) {
+        void showLocalBrowserStampNotification(msg.title, msg.body, `/c/${negocio.slug}`);
+      }
+    },
+    [negocio.nombre, negocio.nombre_premio, negocio.slug]
+  );
 
   const persistDemoStore = useCallback(
     (next: DemoStore) => {
@@ -405,6 +482,44 @@ export function useClientData() {
     return () => window.clearInterval(timer);
   }, [refreshQrToken]);
 
+  // Detectar incrementos de sellos o canjes (Realtime) para reproducir sonido y mensaje de aliento
+  useEffect(() => {
+    if (!cliente || !cartilla) return;
+    const prev = prevProgressRef.current;
+
+    if (!prev || prev.clientId !== cliente.id) {
+      prevProgressRef.current = {
+        clientId: cliente.id,
+        sellosActuales: cartilla.sellos_actuales,
+        canjesHistoricos: cartilla.canjes_historicos,
+      };
+      return;
+    }
+
+    if (cartilla.canjes_historicos > prev.canjesHistoricos) {
+      triggerStampCelebration({
+        kind: 'redeem',
+        nombreCliente: cliente.nombre,
+        sellosActuales: cartilla.sellos_actuales,
+        sellosObjetivo: cartilla.sellos_objetivo,
+      });
+    } else if (cartilla.sellos_actuales > prev.sellosActuales) {
+      triggerStampCelebration({
+        kind: 'stamp',
+        nombreCliente: cliente.nombre,
+        sellosActuales: cartilla.sellos_actuales,
+        sellosObjetivo: cartilla.sellos_objetivo,
+        cantidadAgregada: cartilla.sellos_actuales - prev.sellosActuales,
+      });
+    }
+
+    prevProgressRef.current = {
+      clientId: cliente.id,
+      sellosActuales: cartilla.sellos_actuales,
+      canjesHistoricos: cartilla.canjes_historicos,
+    };
+  }, [cartilla, cliente, triggerStampCelebration]);
+
   // Suscripción Realtime a cartillas para actualizar al instante cuando el cajero sella
   useEffect(() => {
     const supabase = getSupabaseClient();
@@ -416,9 +531,6 @@ export function useClientData() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'cartillas', filter: `cliente_id=eq.${cliente.id}` },
         () => {
-          if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-            navigator.vibrate([80, 40, 120]);
-          }
           void loadData();
         }
       )
@@ -428,6 +540,130 @@ export function useClientData() {
       void supabase.removeChannel(channel);
     };
   }, [cliente, loadData, supabaseReady]);
+
+  // Sincronización en vivo en modo demo entre Caja POS y Cartilla (BroadcastChannel + storage)
+  useEffect(() => {
+    if (!cliente || !cartilla || !cliente.id.startsWith('demo-')) return;
+
+    const clientDigits = cliente.celular.replace(/\D/g, '').slice(-9);
+
+    const applyBroadcast = (payload: DemoStampBroadcastPayload) => {
+      if (!payload || !payload.createdAt || lastBroadcastAtRef.current === payload.createdAt) {
+        return;
+      }
+      const matchesClient =
+        payload.clienteId === cliente.id ||
+        (payload.clientePhoneDigits && clientDigits && payload.clientePhoneDigits === clientDigits);
+      if (!matchesClient) return;
+
+      lastBroadcastAtRef.current = payload.createdAt;
+
+      const nextCartilla: Cartilla =
+        payload.kind === 'redeem'
+          ? {
+              ...cartilla,
+              sellos_actuales: 0,
+              premio_disponible: false,
+              canjes_historicos: cartilla.canjes_historicos + 1,
+              updated_at: payload.createdAt,
+            }
+          : {
+              ...cartilla,
+              sellos_actuales: payload.sellosActuales,
+              sellos_historicos: cartilla.sellos_historicos + Math.max(1, payload.cantidadAgregada),
+              premio_disponible: payload.sellosActuales >= cartilla.sellos_objetivo,
+              updated_at: payload.createdAt,
+            };
+
+      const nextSellos =
+        payload.kind === 'stamp'
+          ? [
+              {
+                id: `sello-live-${Date.now()}`,
+                negocio_id: negocio.id,
+                sede_id: null,
+                cliente_id: cliente.id,
+                cartilla_id: cartilla.id,
+                cajero_id: null,
+                dispositivo_id: null,
+                cantidad: Math.max(1, payload.cantidadAgregada),
+                tipo: 'visita' as const,
+                detalle: payload.detalle || 'Consumo en barra',
+                idempotency_key: `live-${payload.createdAt}`,
+                created_at: payload.createdAt,
+              },
+              ...sellos,
+            ]
+          : sellos;
+
+      const nextCanjes: Canje[] =
+        payload.kind === 'redeem'
+          ? [
+              {
+                id: `canje-live-${Date.now()}`,
+                negocio_id: negocio.id,
+                sede_id: null,
+                cliente_id: cliente.id,
+                cartilla_id: cartilla.id,
+                cajero_id: null,
+                premio_entregado: payload.nombrePremio || negocio.nombre_premio,
+                sellos_consumidos: cartilla.sellos_objetivo,
+                verificado_otp: true,
+                created_at: payload.createdAt,
+              },
+              ...canjes,
+            ]
+          : canjes;
+
+      setCartilla(nextCartilla);
+      setSellos(nextSellos);
+      setCanjes(nextCanjes);
+      persistDemoStore({
+        cliente,
+        cartilla: nextCartilla,
+        sellos: nextSellos,
+        canjes: nextCanjes,
+        cupones,
+        ratedToday,
+        mapsBonusClaimed,
+      });
+    };
+
+    let ch: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      ch = new BroadcastChannel(DEMO_STAMP_CHANNEL);
+      ch.onmessage = (event: MessageEvent<DemoStampBroadcastPayload>) => {
+        applyBroadcast(event.data);
+      };
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === DEMO_STAMP_STORAGE_EVENT_KEY && e.newValue) {
+        try {
+          applyBroadcast(JSON.parse(e.newValue) as DemoStampBroadcastPayload);
+        } catch {
+          // Ignorar error de parseo
+        }
+      }
+    };
+
+    window.addEventListener('storage', onStorage);
+    return () => {
+      ch?.close();
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [
+    canjes,
+    cartilla,
+    cliente,
+    cupones,
+    mapsBonusClaimed,
+    negocio.id,
+    negocio.nombre_premio,
+    persistDemoStore,
+    ratedToday,
+    sellos,
+  ]);
 
   const activarPromo = useCallback(
     async (promoId: string): Promise<{ cupon?: Cupon; error?: string }> => {
@@ -680,6 +916,8 @@ export function useClientData() {
     qrState,
     ratedToday,
     mapsBonusClaimed,
+    stampCelebration,
+    dismissStampCelebration,
     refreshQrToken,
     activarPromo,
     enviarEncuesta,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { CreditCard, History, Tag, User } from 'lucide-react';
+import { CreditCard, Gift, History, Sparkles, Tag, User, Volume2, VolumeX, X } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/src/shared/auth/AuthContext';
 import { ThemeProvider, useTheme } from '@/src/shared/theme/ThemeProvider';
 import { AppHeader } from '@/src/shared/components/AppHeader';
@@ -10,6 +10,11 @@ import { PortalAccesoView } from '@/src/shared/components/PortalAccesoView';
 import { ClientSplashScreen } from '@/src/shared/components/ClientSplashScreen';
 import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
 import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
+import {
+  getSplashSoundMuted,
+  setSplashSoundMuted,
+  unlockAudioContext,
+} from '@/src/shared/pwa/welcomeSound';
 import { useClientData } from '@/src/apps/client/hooks/useClientData';
 import { CartillaTab } from '@/src/apps/client/components/CartillaTab';
 import { PromosTab } from '@/src/apps/client/components/PromosTab';
@@ -36,11 +41,28 @@ const ClientAuthAndShell: React.FC = () => {
     resolveTabFromPath(location.pathname)
   );
   const [rootModalOpen, setRootModalOpen] = useState(false);
+  const [soundMuted, setSoundMuted] = useState<boolean>(() => getSplashSoundMuted());
 
   useEffect(() => {
     const pathTab = resolveTabFromPath(location.pathname);
     setActiveTab(pathTab);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleUnlock = () => {
+      void unlockAudioContext();
+    };
+    window.addEventListener('pointerdown', handleUnlock, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', handleUnlock);
+    };
+  }, []);
+
+  const toggleSoundMuted = () => {
+    const next = !soundMuted;
+    setSoundMuted(next);
+    setSplashSoundMuted(next);
+  };
 
   const isAuthenticated =
     (Boolean(user) && role === 'customer') ||
@@ -58,6 +80,8 @@ const ClientAuthAndShell: React.FC = () => {
     qrState,
     ratedToday,
     mapsBonusClaimed,
+    stampCelebration,
+    dismissStampCelebration,
     refreshQrToken,
     activarPromo,
     enviarEncuesta,
@@ -105,6 +129,83 @@ const ClientAuthAndShell: React.FC = () => {
           }}
           mandatoryModal
         />
+
+        {stampCelebration && (
+          <section
+            role="status"
+            aria-live="polite"
+            className={`rounded-3xl p-4 shadow-md border flex items-start gap-3 transition-all ${
+              stampCelebration.isGoalReached || stampCelebration.kind === 'redeem'
+                ? 'bg-[#FEF6E0] border-[#F2B632] text-[#14201E]'
+                : 'bg-[#0F4C45] border-[#0F4C45] text-white'
+            }`}
+          >
+            <div
+              className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                stampCelebration.isGoalReached || stampCelebration.kind === 'redeem'
+                  ? 'bg-[#F2B632] text-[#14201E]'
+                  : 'bg-[#F2B632]/20 text-[#F2B632]'
+              }`}
+            >
+              {stampCelebration.isGoalReached || stampCelebration.kind === 'redeem' ? (
+                <Gift className="w-5 h-5" />
+              ) : (
+                <Sparkles className="w-5 h-5" />
+              )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-bold leading-snug">{stampCelebration.title}</p>
+                <span
+                  className={`rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    stampCelebration.isGoalReached || stampCelebration.kind === 'redeem'
+                      ? 'bg-[#14201E] text-[#F2B632]'
+                      : 'bg-[#F2B632] text-[#14201E]'
+                  }`}
+                >
+                  {stampCelebration.badgeText}
+                </span>
+              </div>
+              <p
+                className={`text-xs mt-1 leading-relaxed ${
+                  stampCelebration.isGoalReached || stampCelebration.kind === 'redeem'
+                    ? 'text-[#3F4E49]'
+                    : 'text-white/85'
+                }`}
+              >
+                {stampCelebration.body}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={toggleSoundMuted}
+                aria-label={soundMuted ? 'Activar sonidos' : 'Silenciar sonidos'}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition ${
+                  stampCelebration.isGoalReached || stampCelebration.kind === 'redeem'
+                    ? 'hover:bg-black/5 text-[#546560]'
+                    : 'hover:bg-white/10 text-white/80'
+                }`}
+              >
+                {soundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={dismissStampCelebration}
+                aria-label="Cerrar aviso"
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition ${
+                  stampCelebration.isGoalReached || stampCelebration.kind === 'redeem'
+                    ? 'hover:bg-black/5 text-[#546560]'
+                    : 'hover:bg-white/10 text-white/80'
+                }`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </section>
+        )}
 
         {error && (
           <p role="alert" className="rounded-2xl bg-red-50 text-red-700 px-4 py-3 text-xs font-medium">

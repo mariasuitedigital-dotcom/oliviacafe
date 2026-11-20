@@ -3,6 +3,13 @@ import type { PosCashierSession } from '@/src/shared/auth/AuthContext';
 import { getSupabaseClient } from '@/src/shared/lib/supabase';
 import { useTheme } from '@/src/shared/theme/ThemeProvider';
 import { useOnlineStatus } from '@/src/shared/pwa/useOnlineStatus';
+import { playStampFeedbackSound } from '@/src/shared/pwa/welcomeSound';
+import {
+  broadcastDemoStampEvent,
+  buildStampEncouragementMessage,
+  showLocalBrowserStampNotification,
+  type StampEventKind,
+} from '@/src/shared/pwa/stampEncouragement';
 import type { Cartilla, Cupon, NivelLealtad, Promocion } from '@/src/types/database';
 import {
   addRecentPosActivity,
@@ -236,6 +243,102 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
   const [pendingOps, setPendingOps] = useState<PendingPosOp[]>([]);
   const [recentActivity, setRecentActivity] = useState<PosQueueEntry[]>([]);
   const [readyRedeemList, setReadyRedeemList] = useState<PosCustomerView[]>([]);
+
+  const dispatchStampPushNotification = useCallback(
+    async (params: {
+      clienteId: string;
+      clienteNombre: string;
+      clientePhoneMasked?: string;
+      kind: StampEventKind;
+      cantidadAgregada?: number;
+      sellosActuales: number;
+      sellosObjetivo: number;
+      detalle?: string;
+      queuedOffline?: boolean;
+    }) => {
+      if (!posSession) return;
+
+      const phoneDigits = (params.clientePhoneMasked || '').replace(/\D/g, '').slice(-9);
+      const nowIso = new Date().toISOString();
+
+      // Difusión local para modo demo en el mismo navegador
+      if (!supabaseReady || params.clienteId.startsWith('demo-')) {
+        broadcastDemoStampEvent({
+          clienteId: params.clienteId,
+          clientePhoneDigits: phoneDigits.length === 9 ? phoneDigits : undefined,
+          kind: params.kind,
+          cantidadAgregada: Math.max(1, params.cantidadAgregada || 1),
+          detalle: params.detalle || 'Consumo en barra',
+          sellosActuales: params.sellosActuales,
+          sellosObjetivo: params.sellosObjetivo,
+          nombreCliente: params.clienteNombre,
+          negocioNombre: negocio.nombre,
+          nombrePremio: negocio.nombre_premio,
+          createdAt: nowIso,
+        });
+      }
+
+      if (params.queuedOffline || !isOnline) return;
+
+      const previewMsg = buildStampEncouragementMessage({
+        negocioNombre: negocio.nombre,
+        nombreCliente: params.clienteNombre,
+        sellosActuales: params.sellosActuales,
+        sellosObjetivo: params.sellosObjetivo,
+        nombrePremio: negocio.nombre_premio,
+        cantidadAgregada: params.cantidadAgregada || 1,
+        kind: params.kind,
+      });
+
+      let sentByServer = false;
+      if (supabaseReady && !params.clienteId.startsWith('demo-')) {
+        try {
+          const supabase = getSupabaseClient();
+          const sessionRes = supabase ? await supabase.auth.getSession() : null;
+          const accessToken = sessionRes?.data?.session?.access_token;
+
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          if (accessToken) {
+            headers.Authorization = `Bearer ${accessToken}`;
+          }
+
+          const res = await fetch('/api/push/stamp-notify', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              negocio_id: posSession.negocio_id,
+              negocio_nombre: negocio.nombre,
+              nombre_premio: negocio.nombre_premio,
+              cliente_id: params.clienteId,
+              cliente_nombre: params.clienteNombre,
+              dispositivo_id: posSession.dispositivo_id,
+              cajero_id: posSession.id,
+              kind: params.kind,
+              cantidad_agregada: Math.max(1, params.cantidadAgregada || 1),
+              sellos_actuales: params.sellosActuales,
+              sellos_objetivo: params.sellosObjetivo,
+              url: `/c/${negocio.slug}`,
+            }),
+          });
+          if (res.ok) {
+            const json = (await res.json()) as { sent?: number; skipped?: boolean };
+            sentByServer = Boolean(json.sent && json.sent > 0);
+          }
+        } catch {
+          // Fallback local si el endpoint no está disponible en preview
+        }
+      }
+
+      if (!sentByServer) {
+        void showLocalBrowserStampNotification(
+          previewMsg.title,
+          previewMsg.body,
+          `/c/${negocio.slug}`
+        );
+      }
+    },
+    [isOnline, negocio.nombre, negocio.nombre_premio, negocio.slug, posSession, supabaseReady]
+  );
 
   const refreshLocalQueues = useCallback(async () => {
     const [pending, recent] = await Promise.all([
@@ -516,11 +619,14 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate([70, 35, 90]);
         }
+        void playStampFeedbackSound('pos_ok');
+        return nextCartilla;
       };
 
       try {
         const supabase = getSupabaseClient();
         let queuedOffline = false;
+        let syncedCartilla: Cartilla | null = null;
 
         if (supabase && supabaseReady && isOnline) {
           const { data, error } = await supabase.rpc('dar_sello', rpcPayload);
@@ -534,6 +640,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
           } else {
             const res = data as { cartilla?: Cartilla };
             if (res.cartilla) {
+              syncedCartilla = res.cartilla;
               setSelectedCustomer((prev) =>
                 prev ? { ...prev, cartilla: res.cartilla! } : prev
               );
@@ -569,7 +676,20 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
           idempotencyKey,
         });
 
-        applyOptimisticStamp(queuedOffline);
+        const optimisticCartilla = applyOptimisticStamp(queuedOffline);
+        const finalCartilla = syncedCartilla || optimisticCartilla;
+        void dispatchStampPushNotification({
+          clienteId: selectedCustomer.id,
+          clienteNombre: selectedCustomer.nombre,
+          clientePhoneMasked:
+            selectedCustomer.id === 'demo-client-1' ? '987654321' : selectedCustomer.celular_enmascarado,
+          kind: 'stamp',
+          cantidadAgregada: 1,
+          sellosActuales: finalCartilla.sellos_actuales,
+          sellosObjetivo: finalCartilla.sellos_objetivo,
+          detalle,
+          queuedOffline,
+        });
         await refreshLocalQueues();
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'No se pudo asignar el sello.');
@@ -578,6 +698,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
       }
     },
     [
+      dispatchStampPushNotification,
       isOnline,
       negocio.id,
       negocio.sellos_para_premio,
@@ -677,6 +798,18 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate([100, 40, 120]);
         }
+        void playStampFeedbackSound('pos_ok');
+        void dispatchStampPushNotification({
+          clienteId: customer.id,
+          clienteNombre: customer.nombre,
+          clientePhoneMasked:
+            customer.id === 'demo-client-1' ? '987654321' : customer.celular_enmascarado,
+          kind: 'redeem',
+          sellosActuales: 0,
+          sellosObjetivo: customer.cartilla.sellos_objetivo,
+          detalle: `Premio canjeado · ${negocio.nombre_premio}`,
+          queuedOffline,
+        });
         await refreshLocalQueues();
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'Error al canjear el premio.');
@@ -685,6 +818,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
       }
     },
     [
+      dispatchStampPushNotification,
       isOnline,
       negocio.id,
       negocio.nombre_premio,
@@ -772,6 +906,22 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
           title: `Cupón ${couponData.cupon.codigo_qr} aplicado`,
           subtitle: `Precio promo S/ ${couponData.promocion.precio_especial.toFixed(2)} · +${couponData.promocion.sellos_extra} sellos acreditados a ${couponData.cliente_nombre}.`,
         });
+        void playStampFeedbackSound('pos_ok');
+        if (couponData.promocion.sellos_extra > 0) {
+          void dispatchStampPushNotification({
+            clienteId: couponData.cupon.cliente_id,
+            clienteNombre: couponData.cliente_nombre,
+            clientePhoneMasked:
+              couponData.cupon.cliente_id === 'demo-client-1'
+                ? '987654321'
+                : couponData.celular_enmascarado,
+            kind: 'stamp',
+            cantidadAgregada: couponData.promocion.sellos_extra,
+            sellosActuales: couponData.promocion.sellos_extra,
+            sellosObjetivo: negocio.sellos_para_premio,
+            detalle: `Cupón · ${couponData.promocion.titulo}`,
+          });
+        }
         await refreshLocalQueues();
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'No se pudo aplicar el cupón.');
@@ -780,6 +930,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
       }
     },
     [
+      dispatchStampPushNotification,
       isOnline,
       negocio.id,
       negocio.sellos_para_premio,
@@ -852,11 +1003,14 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
         if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
           navigator.vibrate([70, 35, 90]);
         }
+        void playStampFeedbackSound('pos_ok');
+        return nextCartilla;
       };
 
       try {
         const supabase = getSupabaseClient();
         let queuedOffline = false;
+        let syncedCartilla: Cartilla | null = null;
 
         if (supabase && supabaseReady && isOnline) {
           const { data, error } = await supabase.rpc('aplicar_promo_caja', rpcPayload);
@@ -869,6 +1023,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
           } else {
             const res = data as { cartilla?: Cartilla };
             if (res.cartilla) {
+              syncedCartilla = res.cartilla;
               setSelectedCustomer((prev) =>
                 prev ? { ...prev, cartilla: res.cartilla! } : prev
               );
@@ -904,7 +1059,24 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
           idempotencyKey,
         });
 
-        applyOptimisticPromo(queuedOffline);
+        const optimisticCartilla = applyOptimisticPromo(queuedOffline);
+        const finalCartilla = syncedCartilla || optimisticCartilla;
+        if (promo.sellos_extra > 0) {
+          void dispatchStampPushNotification({
+            clienteId: selectedCustomer.id,
+            clienteNombre: selectedCustomer.nombre,
+            clientePhoneMasked:
+              selectedCustomer.id === 'demo-client-1'
+                ? '987654321'
+                : selectedCustomer.celular_enmascarado,
+            kind: 'stamp',
+            cantidadAgregada: promo.sellos_extra,
+            sellosActuales: finalCartilla.sellos_actuales,
+            sellosObjetivo: finalCartilla.sellos_objetivo,
+            detalle: `Promo · ${promo.titulo}`,
+            queuedOffline,
+          });
+        }
         await refreshLocalQueues();
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'No se pudo aplicar la promoción.');
@@ -913,6 +1085,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
       }
     },
     [
+      dispatchStampPushNotification,
       isOnline,
       negocio.id,
       negocio.sellos_para_premio,
