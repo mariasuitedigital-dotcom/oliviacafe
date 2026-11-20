@@ -456,55 +456,181 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = () => {
 
   return (
     <div className="min-h-dvh bg-[#F4F6F4] text-[#14201E] flex flex-col">
+      {isInstalled ? (
+        <>
+          {/* CABECERA MINIMALISTA EN APP INSTALADA (logo conserva 3 toques secretos) */}
+          <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-black/5 pwa-safe-top">
+            <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleSecretLogoClick}
+                className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-[#14201E] whitespace-nowrap shrink-0 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C45] rounded-xl pr-2 touch-manipulation"
+                aria-label={negocio.nombre}
+              >
+                <span className="w-8 h-8 rounded-full bg-[#0F4C45] flex items-center justify-center border border-[#F2B632]">
+                  <Coffee className="w-4 h-4 text-[#F2B632]" />
+                </span>
+                <span>{negocio.nombre}</span>
+              </button>
 
-      {/* TOP BAR CONTRACT: Logo con acceso oculto (3 clics), enlaces y CTA */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-black/5 pwa-safe-top">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={handleSecretLogoClick}
-            className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-[#14201E] whitespace-nowrap shrink-0 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C45] rounded-xl pr-2 touch-manipulation"
-            aria-label={negocio.nombre}
-          >
-            <span className="w-8 h-8 rounded-full bg-[#0F4C45] flex items-center justify-center border border-[#F2B632]">
-              <Coffee className="w-4 h-4 text-[#F2B632]" />
-            </span>
-            <span>{negocio.nombre}</span>
-          </button>
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                title="Actualizar"
+                className="rounded-xl p-2 text-[#546560] hover:text-[#0F4C45] hover:bg-[#F3F6F4] transition active:scale-95"
+                aria-label="Actualizar"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+          </header>
 
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#4A5A56]">
-            <a href="#experiencia" className="hover:text-[#0F4C45] transition-colors whitespace-nowrap shrink-0">
-              Cartilla digital
-            </a>
-            <a href="#como-funciona" className="hover:text-[#0F4C45] transition-colors whitespace-nowrap shrink-0">
-              Cómo funciona
-            </a>
-          </nav>
+          {/* PORTAL DE INICIO DIRECTO PARA APP INSTALADA */}
+          <main className="flex-1 flex items-center justify-center px-4 py-8">
+            <section className="w-full max-w-md rounded-3xl bg-white border border-black/10 p-6 sm:p-7 shadow-sm space-y-5">
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-[#0F4C45] text-[#F2B632] flex items-center justify-center border border-[#F2B632]/50 shadow-sm">
+                  <Coffee className="w-7 h-7" />
+                </div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#0F4C45]">
+                  {negocio.nombre} · Club de Sellos
+                </p>
+                <h1 className="text-2xl font-bold tracking-tight text-[#14201E]">
+                  Ingresa a tu cartilla
+                </h1>
+                <p className="text-xs text-[#546560] leading-relaxed">
+                  Escribe tu número de celular para ver tus sellos, QR y promociones activas.
+                </p>
+              </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Botón de recarga rápida para móvil */}
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              title="Recargar página / Actualizar datos"
-              className="rounded-xl p-2 text-[#546560] hover:text-[#0F4C45] hover:bg-[#F3F6F4] transition active:scale-95"
-              aria-label="Recargar página"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
+              <form onSubmit={handleClientLoginSubmit} className="space-y-4">
+                <div>
+                  <label htmlFor="pwa-login-phone" className="block text-xs font-semibold text-[#14201E] mb-1.5">
+                    Tu número de celular (Perú)
+                  </label>
+                  <div className="flex items-center rounded-xl bg-[#F3F6F4] px-3.5 focus-within:ring-2 focus-within:ring-[#0F4C45]">
+                    <span className="text-sm font-bold text-[#14201E] pr-2.5 border-r border-black/10 whitespace-nowrap flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-[#0F4C45]" /> +51
+                    </span>
+                    <input
+                      id="pwa-login-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      value={loginDigits}
+                      onChange={(e) => setClientPhoneLogin(e.target.value)}
+                      placeholder="987 654 321"
+                      className="w-full bg-transparent px-3 py-3.5 text-base font-semibold tabular-nums text-[#14201E] placeholder:text-[#7B8B86] focus:outline-none min-h-[48px]"
+                      required
+                    />
+                  </div>
+                </div>
 
-            <button
-              type="button"
-              onClick={() => openModal('cliente-register')}
-              className="rounded-xl bg-[#0F4C45] px-4 py-2 text-xs font-bold text-white hover:opacity-95 transition whitespace-nowrap shrink-0 min-h-[40px]"
-            >
-              Registrarse
-            </button>
-          </div>
-        </div>
-      </header>
+                {negocio.otp_requerido_login && otpStep === 'code' && (
+                  <div>
+                    <label htmlFor="pwa-login-otp" className="block text-xs font-semibold text-[#14201E] mb-1.5">
+                      Código SMS recibido
+                    </label>
+                    <input
+                      id="pwa-login-otp"
+                      type="text"
+                      inputMode="numeric"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value)}
+                      placeholder="6 dígitos"
+                      className="w-full rounded-xl bg-[#F3F6F4] px-4 py-3 text-sm tabular-nums text-[#14201E] focus:outline-none focus:ring-2 focus:ring-[#0F4C45] min-h-[48px]"
+                      required
+                    />
+                  </div>
+                )}
 
-      <main id="inicio" className="flex-1">
+                {errorMsg && (
+                  <p role="alert" className="rounded-xl bg-red-50 text-red-700 px-3.5 py-2.5 text-xs font-medium">
+                    {errorMsg}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="w-full rounded-2xl bg-[#0F4C45] py-3.5 px-4 text-sm font-bold text-white flex items-center justify-center gap-2 hover:opacity-95 active:scale-[0.99] transition min-h-[50px]"
+                >
+                  <KeyRound className="w-4 h-4 text-[#F2B632]" />
+                  <span>{busy ? 'Validando...' : 'Ingresar a mi cartilla'}</span>
+                </button>
+              </form>
+
+              <div className="pt-4 border-t border-black/10 space-y-2.5 text-center">
+                <p className="text-xs text-[#546560]">¿Aún no tienes tu cartilla?</p>
+                <button
+                  type="button"
+                  onClick={() => openModal('cliente-register')}
+                  className="w-full rounded-2xl bg-[#E8F1EE] py-3 px-4 text-xs font-bold text-[#0F4C45] inline-flex items-center justify-center gap-2 hover:bg-[#DCE7E3] transition min-h-[44px]"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Registrarse (+1 sello regalo)</span>
+                </button>
+              </div>
+            </section>
+          </main>
+        </>
+      ) : (
+        <>
+          {/* TOP BAR CONTRACT: Logo con acceso oculto (3 clics), enlaces y CTAs */}
+          <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-black/5 pwa-safe-top">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={handleSecretLogoClick}
+                className="flex items-center gap-2.5 text-lg font-bold tracking-tight text-[#14201E] whitespace-nowrap shrink-0 cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C45] rounded-xl pr-2 touch-manipulation"
+                aria-label={negocio.nombre}
+              >
+                <span className="w-8 h-8 rounded-full bg-[#0F4C45] flex items-center justify-center border border-[#F2B632]">
+                  <Coffee className="w-4 h-4 text-[#F2B632]" />
+                </span>
+                <span>{negocio.nombre}</span>
+              </button>
+
+              <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#4A5A56]">
+                <a href="#experiencia" className="hover:text-[#0F4C45] transition-colors whitespace-nowrap shrink-0">
+                  Cartilla digital
+                </a>
+                <a href="#como-funciona" className="hover:text-[#0F4C45] transition-colors whitespace-nowrap shrink-0">
+                  Cómo funciona
+                </a>
+              </nav>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Botón de recarga rápida para móvil */}
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  title="Recargar página / Actualizar datos"
+                  className="rounded-xl p-2 text-[#546560] hover:text-[#0F4C45] hover:bg-[#F3F6F4] transition active:scale-95"
+                  aria-label="Recargar página"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openModal('cliente-login')}
+                  className="rounded-xl bg-[#E8F1EE] px-3.5 py-2 text-xs font-bold text-[#0F4C45] hover:bg-[#DCE7E3] transition whitespace-nowrap shrink-0 min-h-[40px]"
+                >
+                  Ingresar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => openModal('cliente-register')}
+                  className="rounded-xl bg-[#0F4C45] px-4 py-2 text-xs font-bold text-white hover:opacity-95 transition whitespace-nowrap shrink-0 min-h-[40px]"
+                >
+                  Registrarse
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main id="inicio" className="flex-1">
         {/* 1. PRIMERA VISTA ARRIBA: IMAGEN DE LA CAFETERÍA + TÍTULO PROTAGÓNICO */}
         <section id="experiencia" className="max-w-6xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
           <div className="relative rounded-3xl overflow-hidden min-h-[340px] sm:min-h-[430px] bg-[#0F4C45] shadow-sm flex flex-col justify-between">
@@ -683,6 +809,8 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = () => {
           </div>
         </section>
       </main>
+        </>
+      )}
 
       {/* FOOTER CON MARCA DESARROLLADORA (4 clics silenciosos en logo MarIA abre Consola Root) */}
       <MarIaDeveloperFooter
