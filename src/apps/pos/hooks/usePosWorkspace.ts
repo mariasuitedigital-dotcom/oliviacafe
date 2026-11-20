@@ -10,6 +10,10 @@ import {
   showLocalBrowserStampNotification,
   type StampEventKind,
 } from '@/src/shared/pwa/stampEncouragement';
+import {
+  evaluateHappyHour,
+  type HappyHourEvaluation,
+} from '@/src/shared/utils/loyaltyExtras';
 import type { Cartilla, Cupon, NivelLealtad, Promocion } from '@/src/types/database';
 import {
   addRecentPosActivity,
@@ -243,6 +247,17 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
   const [pendingOps, setPendingOps] = useState<PendingPosOp[]>([]);
   const [recentActivity, setRecentActivity] = useState<PosQueueEntry[]>([]);
   const [readyRedeemList, setReadyRedeemList] = useState<PosCustomerView[]>([]);
+  const [happyHourStatus, setHappyHourStatus] = useState<HappyHourEvaluation>(() =>
+    evaluateHappyHour(negocio.happy_hour_config, negocio.zona_horaria)
+  );
+
+  useEffect(() => {
+    const updateHh = () =>
+      setHappyHourStatus(evaluateHappyHour(negocio.happy_hour_config, negocio.zona_horaria));
+    updateHh();
+    const timer = window.setInterval(updateHh, 30000);
+    return () => window.clearInterval(timer);
+  }, [negocio.happy_hour_config, negocio.zona_horaria]);
 
   const dispatchStampPushNotification = useCallback(
     async (params: {
@@ -559,6 +574,11 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
       setErrorMsg(null);
       const idempotencyKey = makeIdempotencyKey('sello');
       const nowIso = new Date().toISOString();
+      const hhNow = evaluateHappyHour(negocio.happy_hour_config, negocio.zona_horaria);
+      const expectedQty = hhNow.isActiveNow ? hhNow.multiplier : 1;
+      const effectiveDetalle = hhNow.isActiveNow
+        ? `${detalle || 'Consumo en barra'} · ${hhNow.label}`
+        : detalle || 'Consumo en barra';
 
       const rpcPayload = {
         p_negocio_id: posSession.negocio_id,
@@ -567,16 +587,23 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
         p_cajero_id: posSession.id,
         p_dispositivo_id: posSession.dispositivo_id,
         p_cantidad: 1,
-        p_detalle: detalle || 'Consumo en barra',
+        p_detalle: effectiveDetalle,
         p_idempotency_key: idempotencyKey,
         p_qr_token: pendingQrToken,
       };
 
-      const applyOptimisticStamp = (offlineQueued: boolean) => {
+      const applyFinalStampState = (
+        offlineQueued: boolean,
+        qtyAdded: number,
+        syncedCartilla: Cartilla | null
+      ) => {
         const current = selectedCustomer.cartilla;
-        const nuevoTotal = Math.min(current.sellos_objetivo, current.sellos_actuales + 1);
-        const nuevoHistorico = current.sellos_historicos + 1;
-        const nextCartilla: Cartilla = {
+        const nuevoTotal =
+          syncedCartilla?.sellos_actuales ??
+          Math.min(current.sellos_objetivo, current.sellos_actuales + qtyAdded);
+        const nuevoHistorico =
+          syncedCartilla?.sellos_historicos ?? current.sellos_historicos + qtyAdded;
+        const nextCartilla: Cartilla = syncedCartilla || {
           ...current,
           sellos_actuales: nuevoTotal,
           sellos_historicos: nuevoHistorico,
@@ -608,11 +635,11 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
         writeLocalPosDb(db);
 
         setFeedbackMsg({
-          title: `+1 Sello asignado a ${selectedCustomer.nombre}`,
+          title: `+${qtyAdded} ${qtyAdded === 1 ? 'Sello asignado' : 'Sellos asignados'} a ${selectedCustomer.nombre}`,
           subtitle:
-            nuevoTotal >= current.sellos_objetivo
+            nextCartilla.sellos_actuales >= nextCartilla.sellos_objetivo
               ? '¡Cartilla completa! Listo para canjear premio gratis.'
-              : `Cartilla ahora en ${nuevoTotal}/${current.sellos_objetivo} sellos.`,
+              : `Cartilla ahora en ${nextCartilla.sellos_actuales}/${nextCartilla.sellos_objetivo} sellos.`,
           offlineQueued,
         });
 
@@ -627,23 +654,31 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
         const supabase = getSupabaseClient();
         let queuedOffline = false;
         let syncedCartilla: Cartilla | null = null;
+        let qtyFinal = expectedQty;
+        let referidorId: string | null = null;
 
         if (supabase && supabaseReady && isOnline) {
           const { data, error } = await supabase.rpc('dar_sello', rpcPayload);
           if (error) {
-            // Si es error de red o offline real, encolar; si es regla de negocio (intervalo mínimo), lanzar
             if (error.message.toLowerCase().includes('fetch')) {
               queuedOffline = true;
             } else {
               throw new Error(error.message);
             }
           } else {
-            const res = data as { cartilla?: Cartilla };
+            const res = data as {
+              cartilla?: Cartilla;
+              cantidad_otorgada?: number;
+              referidor_id?: string | null;
+            };
             if (res.cartilla) {
               syncedCartilla = res.cartilla;
-              setSelectedCustomer((prev) =>
-                prev ? { ...prev, cartilla: res.cartilla! } : prev
-              );
+            }
+            if (typeof res.cantidad_otorgada === 'number' && res.cantidad_otorgada > 0) {
+              qtyFinal = res.cantidad_otorgada;
+            }
+            if (res.referidor_id) {
+              referidorId = res.referidor_id;
             }
           }
         } else if (!isOnline) {
@@ -657,7 +692,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
             createdAt: nowIso,
             customerName: selectedCustomer.nombre,
             maskedPhone: selectedCustomer.celular_enmascarado,
-            summary: `+1 Sello · ${detalle}`,
+            summary: `+${qtyFinal} ${qtyFinal === 1 ? 'Sello' : 'Sellos'} · ${effectiveDetalle}`,
             payload: rpcPayload,
             status: 'pending',
           });
@@ -669,27 +704,41 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.nombre,
           maskedPhone: selectedCustomer.celular_enmascarado,
-          badgeText: '+1 Sello',
-          detailText: detalle,
+          badgeText: `+${qtyFinal} ${qtyFinal === 1 ? 'Sello' : 'Sellos'}`,
+          detailText: effectiveDetalle,
           createdAt: nowIso,
           syncState: queuedOffline ? 'offline_queued' : 'synced',
           idempotencyKey,
         });
 
-        const optimisticCartilla = applyOptimisticStamp(queuedOffline);
-        const finalCartilla = syncedCartilla || optimisticCartilla;
+        const finalCartilla = applyFinalStampState(queuedOffline, qtyFinal, syncedCartilla);
         void dispatchStampPushNotification({
           clienteId: selectedCustomer.id,
           clienteNombre: selectedCustomer.nombre,
           clientePhoneMasked:
             selectedCustomer.id === 'demo-client-1' ? '987654321' : selectedCustomer.celular_enmascarado,
           kind: 'stamp',
-          cantidadAgregada: 1,
+          cantidadAgregada: qtyFinal,
           sellosActuales: finalCartilla.sellos_actuales,
           sellosObjetivo: finalCartilla.sellos_objetivo,
-          detalle,
+          detalle: effectiveDetalle,
           queuedOffline,
         });
+
+        // Si este primer sello desbloqueó premio de referido para quien lo invitó, notificarle también
+        if (referidorId) {
+          void dispatchStampPushNotification({
+            clienteId: referidorId,
+            clienteNombre: 'Amigo del Club',
+            kind: 'stamp',
+            cantidadAgregada: Math.max(1, negocio.referidos_sellos_invitador ?? 1),
+            sellosActuales: finalCartilla.sellos_actuales,
+            sellosObjetivo: negocio.sellos_para_premio,
+            detalle: `¡Tu referido ${selectedCustomer.nombre} visitó el local!`,
+            queuedOffline: false,
+          });
+        }
+
         await refreshLocalQueues();
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'No se pudo asignar el sello.');
@@ -700,8 +749,11 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
     [
       dispatchStampPushNotification,
       isOnline,
+      negocio.happy_hour_config,
       negocio.id,
+      negocio.referidos_sellos_invitador,
       negocio.sellos_para_premio,
+      negocio.zona_horaria,
       pendingQrToken,
       posSession,
       refreshLocalQueues,
@@ -1108,6 +1160,7 @@ export function usePosWorkspace(posSession: PosCashierSession | null, supabaseRe
     selectedCustomer,
     scannedCoupon,
     activePromos,
+    happyHourStatus,
     searching,
     actionBusy,
     syncing,

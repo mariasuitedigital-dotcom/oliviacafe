@@ -12,6 +12,29 @@ export interface NivelConfig {
   beneficio: string;
 }
 
+export interface HappyHourConfig {
+  activo: boolean;
+  dias: number[];
+  hora_inicio: string;
+  hora_fin: string;
+  multiplicador: number;
+  etiqueta: string;
+}
+
+export interface CartaItem {
+  id: string;
+  negocio_id: string;
+  categoria: string;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  imagen_url: string | null;
+  recomendado: boolean;
+  maridaje: string | null;
+  disponible: boolean;
+  orden: number;
+}
+
 export interface Negocio {
   id: string;
   slug: string;
@@ -32,6 +55,12 @@ export interface Negocio {
   nombre_premio: string;
   intervalo_minimo_sellos_min: number;
   niveles_config: NivelConfig[];
+  referidos_activo?: boolean;
+  referidos_sellos_invitador?: number;
+  referidos_sellos_invitado?: number;
+  happy_hour_config?: HappyHourConfig;
+  ticket_promedio_pen?: number;
+  costo_premio_pen?: number;
   evolution_instance_name: string | null;
   evolution_status: string;
   whatsapp_contacto_numero: string | null;
@@ -96,6 +125,9 @@ export interface Cliente {
   origen_registro: string | null;
   total_visitas: number;
   ultima_visita_at: string | null;
+  referido_por_cliente_id?: string | null;
+  referido_recompensado?: boolean;
+  total_referidos_exitosos?: number;
   created_at: string;
 }
 

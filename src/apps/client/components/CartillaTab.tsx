@@ -3,23 +3,32 @@ import { QRCodeSVG } from 'qrcode.react';
 import {
   Award,
   Check,
+  Clock,
   Coffee,
+  Copy,
   ExternalLink,
   Gift,
   MapPin,
   RefreshCw,
+  Share2,
   Star,
   Sun,
+  UserPlus,
   X,
 } from 'lucide-react';
 import type { Cartilla, Cliente } from '@/src/types/database';
 import type { QrTokenState } from '@/src/apps/client/hooks/useClientData';
+import {
+  buildReferralShareUrl,
+  type HappyHourEvaluation,
+} from '@/src/shared/utils/loyaltyExtras';
 import { useTheme } from '@/src/shared/theme/ThemeProvider';
 
 interface CartillaTabProps {
   cliente: Cliente;
   cartilla: Cartilla;
   qrState: QrTokenState;
+  happyHourStatus: HappyHourEvaluation;
   ratedToday: number | null;
   mapsBonusClaimed: boolean;
   onRefreshQr: () => void;
@@ -31,6 +40,7 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
   cliente,
   cartilla,
   qrState,
+  happyHourStatus,
   ratedToday,
   mapsBonusClaimed,
   onRefreshQr,
@@ -43,6 +53,24 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
   const [hoverStar, setHoverStar] = useState<number>(0);
   const [detractorComment, setDetractorComment] = useState('');
   const [detractorSent, setDetractorSent] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
+
+  const referralUrl = buildReferralShareUrl(negocio.slug, cartilla.codigo_corto);
+  const sellosInvitador = negocio.referidos_sellos_invitador ?? 1;
+  const sellosInvitado = negocio.referidos_sellos_invitado ?? 1;
+  const waShareUrl = `https://wa.me/?text=${encodeURIComponent(
+    `¡Te invito al club de ${negocio.nombre}! ☕ Regístrate con mi enlace y ganamos sellos extra en tu 1.ª visita: ${referralUrl}`
+  )}`;
+
+  const handleCopyReferral = async () => {
+    try {
+      await navigator.clipboard.writeText(referralUrl);
+      setCopiedRef(true);
+      window.setTimeout(() => setCopiedRef(false), 2000);
+    } catch {
+      // Ignore clipboard failure
+    }
+  };
 
   const faltan = Math.max(0, cartilla.sellos_objetivo - cartilla.sellos_actuales);
   const progresoPct = Math.min(
@@ -91,6 +119,46 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
           )}
         </div>
       </div>
+
+      {/* BANNER HORA FELIZ (DOBLE SELLO EN HORAS MUERTAS) */}
+      {happyHourStatus.enabled && (
+        <section
+          className={`rounded-2xl px-4 py-3 flex items-center justify-between gap-3 border ${
+            happyHourStatus.isActiveNow
+              ? 'bg-[#FEF6E0] border-[#F2B632] text-[#14201E]'
+              : 'bg-white border-black/10 text-[#354440]'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <Clock
+              className={`w-4 h-4 shrink-0 ${
+                happyHourStatus.isActiveNow ? 'text-[#0F4C45]' : 'text-[#7A5600]'
+              }`}
+            />
+            <div>
+              <p className="text-xs font-bold">
+                {happyHourStatus.isActiveNow
+                  ? `¡${happyHourStatus.label} ACTIVA AHORA!`
+                  : happyHourStatus.label}
+              </p>
+              <p className="text-[11px] opacity-85">
+                {happyHourStatus.isActiveNow
+                  ? `Ven hoy y cada consumo suma ${happyHourStatus.multiplier}x sellos en tu cartilla.`
+                  : `Horario activo: ${happyHourStatus.scheduleSummary}`}
+              </p>
+            </div>
+          </div>
+          <span
+            className={`rounded-lg px-2.5 py-1 text-[11px] font-bold shrink-0 ${
+              happyHourStatus.isActiveNow
+                ? 'bg-[#0F4C45] text-[#F2B632]'
+                : 'bg-[#F3F6F4] text-[#0F4C45]'
+            }`}
+          >
+            {happyHourStatus.multiplier}x Sellos
+          </span>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* TARJETA PRINCIPAL DE SELLOS (7 cols desktop) */}
@@ -246,6 +314,65 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
           </div>
         </section>
       </div>
+
+      {/* REFIERE A UN AMIGO Y GANAN AMBOS */}
+      {negocio.referidos_activo !== false && (
+        <section className="rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-[#E8F1EE] text-[#0F4C45] flex items-center justify-center shrink-0">
+              <UserPlus className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-bold text-[#14201E]">
+                  Invita a un amigo y ganan ambos
+                </h2>
+                {(cliente.total_referidos_exitosos || 0) > 0 && (
+                  <span className="rounded-lg bg-[#FEF6E0] px-2 py-0.5 text-[11px] font-bold text-[#7A5600] tabular-nums">
+                    {cliente.total_referidos_exitosos}{' '}
+                    {cliente.total_referidos_exitosos === 1 ? 'referido' : 'referidos'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[#546560] mt-0.5 leading-relaxed">
+                Comparte tu código <strong>{cartilla.codigo_corto}</strong>. Cuando tu amigo visite el local por 1.ª vez, recibes{' '}
+                <strong>+{sellosInvitador} {sellosInvitador === 1 ? 'sello' : 'sellos'}</strong> y él{' '}
+                <strong>+{sellosInvitado} extra</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => void handleCopyReferral()}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3.5 py-2.5 text-xs font-bold text-[#14201E] min-h-[42px] whitespace-nowrap"
+            >
+              {copiedRef ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-[#0F4C45]" />
+                  <span>¡Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-[#0F4C45]" />
+                  <span>Copiar link</span>
+                </>
+              )}
+            </button>
+
+            <a
+              href={waShareUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0F4C45] px-4 py-2.5 text-xs font-bold text-white min-h-[42px] whitespace-nowrap hover:opacity-95"
+            >
+              <Share2 className="w-3.5 h-3.5 text-[#F2B632]" />
+              <span>Invitar por WhatsApp</span>
+            </a>
+          </div>
+        </section>
+      )}
 
       {/* ENCUESTA DE SATISFACCIÓN + RESEÑA GOOGLE MAPS */}
       <section className="rounded-3xl bg-white p-6 shadow-sm border border-black/5">

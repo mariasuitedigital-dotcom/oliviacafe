@@ -3,12 +3,17 @@ import { getSupabaseClient } from '@/src/shared/lib/supabase';
 import { useTheme } from '@/src/shared/theme/ThemeProvider';
 import type {
   CanalMensaje,
+  CartaItem,
   Negocio,
   NivelConfig,
   NivelLealtad,
   Promocion,
   Sede,
 } from '@/src/types/database';
+import {
+  readLocalCartaItems,
+  writeLocalCartaItems,
+} from '@/src/shared/utils/loyaltyExtras';
 import {
   createPosUserByAdminLocal,
   listLocalAccounts,
@@ -32,6 +37,7 @@ export interface AdminClienteRow {
   baja_whatsapp: boolean;
   fecha_nacimiento_dia: number | null;
   fecha_nacimiento_mes: number | null;
+  total_referidos_exitosos: number;
 }
 
 export interface AdminAutomatizacion {
@@ -146,6 +152,7 @@ function buildInitialAdminDemoStore(negocio: Negocio): AdminDemoStore {
         baja_whatsapp: false,
         fecha_nacimiento_dia: 15,
         fecha_nacimiento_mes: 5,
+        total_referidos_exitosos: 2,
       },
     ],
     promociones: [
@@ -332,6 +339,7 @@ export function useAdminData(supabaseReady: boolean) {
   const { negocio, setNegocioOverride } = useTheme();
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<AdminDemoStore>(() => buildInitialAdminDemoStore(negocio));
+  const [cartaItems, setCartaItems] = useState<CartaItem[]>(() => readLocalCartaItems(negocio.id));
   const [actionToast, setActionToast] = useState<string | null>(null);
 
   const notify = useCallback((msg: string) => {
@@ -363,12 +371,13 @@ export function useAdminData(supabaseReady: boolean) {
           { data: staffData },
           { data: audData },
           { data: encData },
+          { data: cartaData },
         ] = await Promise.all([
           supabase.from('sedes').select('*').eq('negocio_id', negocio.id),
           supabase
             .from('clientes')
             .select(
-              'id, nombre, celular, total_visitas, ultima_visita_at, consentimiento_whatsapp, consentimiento_push, baja_whatsapp, fecha_nacimiento_dia, fecha_nacimiento_mes, cartillas(sellos_actuales, sellos_objetivo, sellos_historicos, canjes_historicos, nivel)'
+              'id, nombre, celular, total_visitas, ultima_visita_at, consentimiento_whatsapp, consentimiento_push, baja_whatsapp, fecha_nacimiento_dia, fecha_nacimiento_mes, total_referidos_exitosos, cartillas(sellos_actuales, sellos_objetivo, sellos_historicos, canjes_historicos, nivel)'
             )
             .eq('negocio_id', negocio.id)
             .order('ultima_visita_at', { ascending: false })
@@ -397,6 +406,11 @@ export function useAdminData(supabaseReady: boolean) {
             .eq('negocio_id', negocio.id)
             .order('created_at', { ascending: false })
             .limit(25),
+          supabase
+            .from('carta_items')
+            .select('*')
+            .eq('negocio_id', negocio.id)
+            .order('orden', { ascending: true }),
         ]);
 
         const sedesList = (sedesData as Sede[]) || [];
@@ -422,9 +436,17 @@ export function useAdminData(supabaseReady: boolean) {
               baja_whatsapp: Boolean(row.baja_whatsapp),
               fecha_nacimiento_dia: (row.fecha_nacimiento_dia as number | null) ?? null,
               fecha_nacimiento_mes: (row.fecha_nacimiento_mes as number | null) ?? null,
+              total_referidos_exitosos: Number(row.total_referidos_exitosos ?? 0),
             };
           }
         );
+
+        if (Array.isArray(cartaData) && cartaData.length > 0) {
+          setCartaItems(cartaData as CartaItem[]);
+          writeLocalCartaItems(negocio.id, cartaData as CartaItem[]);
+        } else {
+          setCartaItems(readLocalCartaItems(negocio.id));
+        }
 
         setStore((prev) => ({
           ...prev,
@@ -499,8 +521,10 @@ export function useAdminData(supabaseReady: boolean) {
         localStorage.setItem(ADMIN_DEMO_KEY, JSON.stringify(init));
         setStore(init);
       }
+      setCartaItems(readLocalCartaItems(negocio.id));
     } catch {
       setStore(buildInitialAdminDemoStore(negocio));
+      setCartaItems(readLocalCartaItems(negocio.id));
     } finally {
       setLoading(false);
     }
@@ -957,6 +981,12 @@ export function useAdminData(supabaseReady: boolean) {
           | 'horario_envio_fin'
           | 'google_maps_url'
           | 'texto_privacidad'
+          | 'referidos_activo'
+          | 'referidos_sellos_invitador'
+          | 'referidos_sellos_invitado'
+          | 'happy_hour_config'
+          | 'ticket_promedio_pen'
+          | 'costo_premio_pen'
         >
       >
     ) => {
@@ -968,6 +998,140 @@ export function useAdminData(supabaseReady: boolean) {
       notify('Configuración del negocio guardada.');
     },
     [negocio.id, notify, setNegocioOverride, supabaseReady]
+  );
+
+  const crearCartaItem = useCallback(
+    async (input: {
+      categoria: string;
+      nombre: string;
+      descripcion: string;
+      precio: number;
+      maridaje: string;
+      recomendado: boolean;
+      imagen_url?: string;
+    }) => {
+      const nextOrden = cartaItems.length + 1;
+      const newItem: CartaItem = {
+        id: `carta-${Date.now()}`,
+        negocio_id: negocio.id,
+        categoria: input.categoria,
+        nombre: input.nombre,
+        descripcion: input.descripcion || '',
+        precio: input.precio,
+        imagen_url: input.imagen_url || null,
+        recomendado: input.recomendado,
+        maridaje: input.maridaje || '',
+        disponible: true,
+        orden: nextOrden,
+      };
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        const { data } = await supabase
+          .from('carta_items')
+          .insert({
+            negocio_id: negocio.id,
+            categoria: input.categoria,
+            nombre: input.nombre,
+            descripcion: input.descripcion || '',
+            precio: input.precio,
+            imagen_url: input.imagen_url || null,
+            recomendado: input.recomendado,
+            maridaje: input.maridaje || '',
+            disponible: true,
+            orden: nextOrden,
+          })
+          .select()
+          .single();
+        if (data) newItem.id = String((data as Record<string, unknown>).id);
+      }
+      const next = [...cartaItems, newItem];
+      setCartaItems(next);
+      writeLocalCartaItems(negocio.id, next);
+      notify(`"${input.nombre}" agregado a la Carta Digital.`);
+    },
+    [cartaItems, negocio.id, notify, supabaseReady]
+  );
+
+  const actualizarCartaItem = useCallback(
+    async (
+      id: string,
+      input: {
+        categoria: string;
+        nombre: string;
+        descripcion: string;
+        precio: number;
+        maridaje: string;
+        recomendado: boolean;
+        imagen_url?: string;
+      }
+    ) => {
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase
+          .from('carta_items')
+          .update({
+            categoria: input.categoria,
+            nombre: input.nombre,
+            descripcion: input.descripcion || '',
+            precio: input.precio,
+            maridaje: input.maridaje || '',
+            recomendado: input.recomendado,
+            imagen_url: input.imagen_url || null,
+          })
+          .eq('id', id);
+      }
+      const next = cartaItems.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              categoria: input.categoria,
+              nombre: input.nombre,
+              descripcion: input.descripcion || '',
+              precio: input.precio,
+              maridaje: input.maridaje || '',
+              recomendado: input.recomendado,
+              imagen_url: input.imagen_url || item.imagen_url,
+            }
+          : item
+      );
+      setCartaItems(next);
+      writeLocalCartaItems(negocio.id, next);
+      notify('Producto de carta actualizado.');
+    },
+    [cartaItems, negocio.id, notify, supabaseReady]
+  );
+
+  const toggleCartaItem = useCallback(
+    async (id: string) => {
+      const target = cartaItems.find((i) => i.id === id);
+      if (!target) return;
+      const nextDisp = !target.disponible;
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase.from('carta_items').update({ disponible: nextDisp }).eq('id', id);
+      }
+      const next = cartaItems.map((item) =>
+        item.id === id ? { ...item, disponible: nextDisp } : item
+      );
+      setCartaItems(next);
+      writeLocalCartaItems(negocio.id, next);
+      notify(nextDisp ? 'Producto visible en carta.' : 'Producto marcado como agotado.');
+    },
+    [cartaItems, negocio.id, notify, supabaseReady]
+  );
+
+  const eliminarCartaItem = useCallback(
+    async (id: string) => {
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase.from('carta_items').delete().eq('id', id);
+      }
+      const next = cartaItems.filter((item) => item.id !== id);
+      setCartaItems(next);
+      writeLocalCartaItems(negocio.id, next);
+      notify('Producto eliminado de la Carta Digital.');
+    },
+    [cartaItems, negocio.id, notify, supabaseReady]
   );
 
   const updateNiveles = useCallback(
@@ -1076,6 +1240,7 @@ export function useAdminData(supabaseReady: boolean) {
     auditoria: store.auditoria,
     encuestas: store.encuestas,
     campanas: store.campanas,
+    cartaItems,
     evolutionStatus: store.evolutionStatus,
     actionToast,
     exportClientesCsv,
@@ -1096,5 +1261,9 @@ export function useAdminData(supabaseReady: boolean) {
     actualizarSede,
     toggleSede,
     eliminarSede,
+    crearCartaItem,
+    actualizarCartaItem,
+    toggleCartaItem,
+    eliminarCartaItem,
   };
 }

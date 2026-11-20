@@ -30,6 +30,10 @@ import { getSupabaseClient } from '@/src/shared/lib/supabase';
 import { registerClientPushSubscription } from '@/src/shared/pwa/pushSubscription';
 import { downloadBusinessVCard } from '@/src/shared/utils/vcard';
 import {
+  captureReferralFromUrl,
+  clearPendingReferralCode,
+} from '@/src/shared/utils/loyaltyExtras';
+import {
   confirmarOtpPrimerIngreso,
   validarAccesoClaveConOtp,
 } from '@/src/shared/auth/accessProvisioning';
@@ -105,6 +109,7 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = () => {
   const [mesNac, setMesNac] = useState<number>(5);
   const [anioNac, setAnioNac] = useState<string>('');
   const [consentimiento, setConsentimiento] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(() => captureReferralFromUrl());
 
   // Requisitos de activación (PWA + Push + Libreta de contactos)
   const [pendingClientId, setPendingClientId] = useState<string>('demo-client-1');
@@ -217,13 +222,18 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = () => {
           p_mes_nac: mesNac,
           p_anio_nac: parsedYear,
           p_consentimiento_wa: consentimiento,
-          p_origen: 'landing_registro',
+          p_origen: referralCode ? 'referido_web' : 'landing_registro',
+          p_codigo_referido: referralCode || null,
         });
         if (error) throw error;
         const payload = data as { cliente: { id: string } };
         setPendingClientId(payload.cliente.id);
       } else {
         setPendingClientId(`demo-${regDigits}`);
+      }
+      if (referralCode) {
+        clearPendingReferralCode();
+        setReferralCode(null);
       }
       setRegisterStage('activate');
     } catch (err) {
@@ -870,6 +880,14 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = () => {
               {activeModal === 'cliente-register' &&
                 (registerStage === 'form' ? (
                   <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                    {referralCode && (
+                      <div className="rounded-2xl bg-[#FEF6E0] border border-[#F2B632]/50 px-3.5 py-2.5 flex items-center gap-2.5 text-xs text-[#7A5600]">
+                        <Gift className="w-4 h-4 shrink-0 text-[#0F4C45]" />
+                        <span>
+                          Invitación aplicada (<strong>{referralCode}</strong>): tú y tu amigo ganan sellos extra en tu 1.ª visita en caja.
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <label htmlFor="m-reg-nombre" className="block text-xs font-semibold text-[#14201E] mb-1.5">
                         Nombre completo

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { CreditCard, Gift, History, Sparkles, Tag, User, Volume2, VolumeX, X } from 'lucide-react';
+import { Coffee, CreditCard, Gift, History, Sparkles, Tag, User, Volume2, VolumeX, X } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/src/shared/auth/AuthContext';
 import { ThemeProvider, useTheme } from '@/src/shared/theme/ThemeProvider';
 import { AppHeader } from '@/src/shared/components/AppHeader';
@@ -17,13 +17,15 @@ import {
 } from '@/src/shared/pwa/welcomeSound';
 import { useClientData } from '@/src/apps/client/hooks/useClientData';
 import { CartillaTab } from '@/src/apps/client/components/CartillaTab';
+import { CartaTab } from '@/src/apps/client/components/CartaTab';
 import { PromosTab } from '@/src/apps/client/components/PromosTab';
 import { HistorialTab } from '@/src/apps/client/components/HistorialTab';
 import { PerfilTab } from '@/src/apps/client/components/PerfilTab';
 
-type ClientTab = 'cartilla' | 'promos' | 'historial' | 'perfil';
+type ClientTab = 'cartilla' | 'carta' | 'promos' | 'historial' | 'perfil';
 
 function resolveTabFromPath(pathname: string): ClientTab {
+  if (pathname.includes('/carta')) return 'carta';
   if (pathname.includes('/promos')) return 'promos';
   if (pathname.includes('/historial')) return 'historial';
   if (pathname.includes('/perfil')) return 'perfil';
@@ -77,6 +79,8 @@ const ClientAuthAndShell: React.FC = () => {
     canjes,
     promos,
     cupones,
+    cartaItems,
+    happyHourStatus,
     qrState,
     ratedToday,
     mapsBonusClaimed,
@@ -227,11 +231,21 @@ const ClientAuthAndShell: React.FC = () => {
                 cliente={cliente}
                 cartilla={cartilla}
                 qrState={qrState}
+                happyHourStatus={happyHourStatus}
                 ratedToday={ratedToday}
                 mapsBonusClaimed={mapsBonusClaimed}
                 onRefreshQr={() => void refreshQrToken()}
                 onRate={enviarEncuesta}
                 onClaimMapsBonus={reclamarBonusMaps}
+              />
+            )}
+
+            {activeTab === 'carta' && (
+              <CartaTab
+                items={cartaItems}
+                happyHourStatus={happyHourStatus}
+                whatsappNumber={negocio.whatsapp_contacto_numero || '+51987111222'}
+                negocioNombre={negocio.nombre}
               />
             )}
 
@@ -271,9 +285,10 @@ const ClientAuthAndShell: React.FC = () => {
         aria-label="Navegación de cliente"
         className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-black/10 pwa-safe-bottom pwa-ui-noselect"
       >
-        <div className="max-w-lg mx-auto grid grid-cols-4 h-16">
+        <div className="max-w-lg mx-auto grid grid-cols-5 h-16">
           {[
-            { id: 'cartilla' as const, label: 'Mi Cartilla', icon: CreditCard, badge: 0 },
+            { id: 'cartilla' as const, label: 'Cartilla', icon: CreditCard, badge: 0 },
+            { id: 'carta' as const, label: 'Carta', icon: Coffee, badge: 0 },
             {
               id: 'promos' as const,
               label: 'Promos',

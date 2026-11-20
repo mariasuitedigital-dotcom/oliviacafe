@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Award,
   CheckCircle2,
+  Clock,
   Coffee,
   Gift,
   MessageSquare,
@@ -17,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import type { PosCustomerView, PosScannedCoupon } from '@/src/apps/pos/hooks/usePosWorkspace';
+import type { HappyHourEvaluation } from '@/src/shared/utils/loyaltyExtras';
 import type { Promocion } from '@/src/types/database';
 import { useTheme } from '@/src/shared/theme/ThemeProvider';
 
@@ -28,6 +30,7 @@ interface SellarTabProps {
   selectedCustomer: PosCustomerView | null;
   scannedCoupon: PosScannedCoupon | null;
   activePromos: Promocion[];
+  happyHourStatus: HappyHourEvaluation;
   feedbackMsg: { title: string; subtitle: string; offlineQueued?: boolean } | null;
   errorMsg: string | null;
   onOpenScanner: () => void;
@@ -49,6 +52,7 @@ export const SellarTab: React.FC<SellarTabProps> = ({
   selectedCustomer,
   scannedCoupon,
   activePromos,
+  happyHourStatus,
   feedbackMsg,
   errorMsg,
   onOpenScanner,
@@ -122,6 +126,25 @@ export const SellarTab: React.FC<SellarTabProps> = ({
 
   return (
     <div className="space-y-5">
+      {happyHourStatus.enabled && happyHourStatus.isActiveNow && (
+        <section className="rounded-2xl bg-[#FEF6E0] border border-[#F2B632] px-4 py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Clock className="w-4 h-4 text-[#7A5600] shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-[#14201E]">
+                {happyHourStatus.label} ACTIVA ({happyHourStatus.multiplier}x Sellos)
+              </p>
+              <p className="text-[11px] text-[#6B4E08]">
+                Cada sello marcado ahora acredita automáticamente +{happyHourStatus.multiplier} sellos en cartilla.
+              </p>
+            </div>
+          </div>
+          <span className="rounded-lg bg-[#0F4C45] px-2.5 py-1 text-[11px] font-bold text-[#F2B632] shrink-0">
+            {happyHourStatus.multiplier}x EN VIVO
+          </span>
+        </section>
+      )}
+
       {/* BUSCADOR DE CLIENTE / CUPÓN + ESCÁNER QR */}
       <section className="rounded-3xl bg-white p-5 shadow-sm border border-black/5 space-y-3">
         <div className="flex items-center justify-between gap-2 text-xs">
@@ -304,7 +327,13 @@ export const SellarTab: React.FC<SellarTabProps> = ({
               className="w-full rounded-2xl bg-[#F2B632] text-[#14201E] px-5 py-4 text-base font-bold flex items-center justify-center gap-2 shadow-md hover:brightness-95 active:scale-[0.98] transition min-h-[60px] disabled:opacity-50"
             >
               <PlusCircle className="w-5 h-5" />
-              <span>{actionBusy ? 'Registrando...' : '+1 Punto / Sello Hoy'}</span>
+              <span>
+                {actionBusy
+                  ? 'Registrando...'
+                  : happyHourStatus.isActiveNow
+                  ? `+${happyHourStatus.multiplier} Sellos (${happyHourStatus.label})`
+                  : '+1 Punto / Sello Hoy'}
+              </span>
             </button>
 
             <button

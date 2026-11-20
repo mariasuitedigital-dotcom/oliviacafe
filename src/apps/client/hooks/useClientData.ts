@@ -15,7 +15,12 @@ import {
   type DemoStampBroadcastPayload,
   type StampEventKind,
 } from '@/src/shared/pwa/stampEncouragement';
-import type { Canje, Cartilla, Cliente, Cupon, Promocion, Sello } from '@/src/types/database';
+import {
+  evaluateHappyHour,
+  readLocalCartaItems,
+  type HappyHourEvaluation,
+} from '@/src/shared/utils/loyaltyExtras';
+import type { Canje, CartaItem, Cartilla, Cliente, Cupon, Promocion, Sello } from '@/src/types/database';
 
 export interface QrTokenState {
   token: string;
@@ -248,9 +253,23 @@ export function useClientData() {
   const [canjes, setCanjes] = useState<Canje[]>([]);
   const [promos, setPromos] = useState<Promocion[]>([]);
   const [cupones, setCupones] = useState<Cupon[]>([]);
+  const [cartaItems, setCartaItems] = useState<CartaItem[]>(() =>
+    readLocalCartaItems(negocio.id).filter((i) => i.disponible)
+  );
+  const [happyHourStatus, setHappyHourStatus] = useState<HappyHourEvaluation>(() =>
+    evaluateHappyHour(negocio.happy_hour_config, negocio.zona_horaria)
+  );
   const [ratedToday, setRatedToday] = useState<number | null>(null);
   const [mapsBonusClaimed, setMapsBonusClaimed] = useState<boolean>(false);
   const [stampCelebration, setStampCelebration] = useState<StampCelebrationState | null>(null);
+
+  useEffect(() => {
+    const updateHh = () =>
+      setHappyHourStatus(evaluateHappyHour(negocio.happy_hour_config, negocio.zona_horaria));
+    updateHh();
+    const timer = window.setInterval(updateHh, 30000);
+    return () => window.clearInterval(timer);
+  }, [negocio.happy_hour_config, negocio.zona_horaria]);
 
   const prevProgressRef = useRef<{
     clientId: string;
@@ -356,7 +375,7 @@ export function useClientData() {
           setCliente(cliData as Cliente);
           setCartilla(carData as Cartilla);
 
-          const [{ data: sellosData }, { data: canjesData }, { data: promosData }, { data: cuponesData }] =
+          const [{ data: sellosData }, { data: canjesData }, { data: promosData }, { data: cuponesData }, { data: cartaData }] =
             await Promise.all([
               supabase
                 .from('sellos')
@@ -382,12 +401,23 @@ export function useClientData() {
                 .select('*')
                 .eq('cliente_id', clientSession.cliente_id)
                 .order('activado_at', { ascending: false }),
+              supabase
+                .from('carta_items')
+                .select('*')
+                .eq('negocio_id', negocio.id)
+                .eq('disponible', true)
+                .order('orden', { ascending: true }),
             ]);
 
           setSellos((sellosData as Sello[]) || []);
           setCanjes((canjesData as Canje[]) || []);
           setPromos((promosData as Promocion[]) || []);
           setCupones((cuponesData as Cupon[]) || []);
+          setCartaItems(
+            Array.isArray(cartaData) && cartaData.length > 0
+              ? (cartaData as CartaItem[])
+              : readLocalCartaItems(negocio.id).filter((i) => i.disponible)
+          );
           setLoading(false);
           return;
         }
@@ -418,6 +448,7 @@ export function useClientData() {
       setRatedToday(parsed.ratedToday);
       setMapsBonusClaimed(parsed.mapsBonusClaimed);
       setPromos(buildDemoPromos(negocio.id));
+      setCartaItems(readLocalCartaItems(negocio.id).filter((i) => i.disponible));
     } catch {
       const fallback = buildInitialDemoStore(
         negocio.id,
@@ -431,6 +462,7 @@ export function useClientData() {
       setCartilla(fallback.cartilla);
       setSellos(fallback.sellos);
       setPromos(buildDemoPromos(negocio.id));
+      setCartaItems(readLocalCartaItems(negocio.id).filter((i) => i.disponible));
     } finally {
       setLoading(false);
     }
@@ -913,6 +945,8 @@ export function useClientData() {
     canjes,
     promos,
     cupones,
+    cartaItems,
+    happyHourStatus,
     qrState,
     ratedToday,
     mapsBonusClaimed,

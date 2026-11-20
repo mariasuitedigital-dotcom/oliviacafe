@@ -76,6 +76,7 @@ const PosWorkspace: React.FC = () => {
     selectedCustomer,
     scannedCoupon,
     activePromos,
+    happyHourStatus,
     searching,
     actionBusy,
     syncing,
@@ -546,6 +547,7 @@ const PosWorkspace: React.FC = () => {
                 selectedCustomer={selectedCustomer}
                 scannedCoupon={scannedCoupon}
                 activePromos={activePromos}
+                happyHourStatus={happyHourStatus}
                 feedbackMsg={feedbackMsg}
                 errorMsg={errorMsg}
                 onOpenScanner={() => setScannerOpen(true)}

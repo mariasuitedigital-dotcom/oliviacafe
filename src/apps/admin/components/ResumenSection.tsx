@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Award,
+  BarChart3,
+  Clock,
   Coffee,
   Download,
   FileSpreadsheet,
@@ -14,8 +16,10 @@ import {
   Star,
   Store,
   TrendingUp,
+  UserPlus,
   Users,
 } from 'lucide-react';
+import { evaluateHappyHour } from '@/src/shared/utils/loyaltyExtras';
 import type {
   AdminClienteRow,
   AdminEncuestaRow,
@@ -28,8 +32,14 @@ interface ResumenSectionProps {
   clientes: AdminClienteRow[];
   encuestas: AdminEncuestaRow[];
   onExportCsv: () => void;
-  onNavigateSection: (section: 'clientes' | 'recompensa' | 'promociones' | 'auditoria') => void;
+  onNavigateSection: (
+    section: 'clientes' | 'recompensa' | 'promociones' | 'auditoria' | 'carta'
+  ) => void;
   onReactivateInactive: () => Promise<void>;
+  onSaveRoiParams: (updates: {
+    ticket_promedio_pen: number;
+    costo_premio_pen: number;
+  }) => Promise<void>;
 }
 
 export const ResumenSection: React.FC<ResumenSectionProps> = ({
@@ -40,10 +50,23 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
   onExportCsv,
   onNavigateSection,
   onReactivateInactive,
+  onSaveRoiParams,
 }) => {
   const [selectedSedeId, setSelectedSedeId] = useState<string>('todas');
   const [periodo, setPeriodo] = useState<'mes' | 'semana' | 'total'>('mes');
   const [reactivating, setReactivating] = useState(false);
+  const [ticketInput, setTicketInput] = useState<string>(
+    String(negocio.ticket_promedio_pen ?? 22)
+  );
+  const [costoInput, setCostoInput] = useState<string>(
+    String(negocio.costo_premio_pen ?? 9.5)
+  );
+  const [savingRoi, setSavingRoi] = useState(false);
+
+  const happyHourStatus = useMemo(
+    () => evaluateHappyHour(negocio.happy_hour_config, negocio.zona_horaria),
+    [negocio.happy_hour_config, negocio.zona_horaria]
+  );
 
   const stats = useMemo(() => {
     const mult = periodo === 'semana' ? 0.3 : periodo === 'mes' ? 1 : 1;
@@ -71,6 +94,20 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
     ).length;
 
     const detractores = encuestas.filter((e) => e.calificacion <= 3);
+    const totalReferidos = clientes.reduce(
+      (acc, c) => acc + (c.total_referidos_exitosos || 0),
+      0
+    );
+
+    const ticketProm = Math.max(1, Number(ticketInput) || negocio.ticket_promedio_pen || 22);
+    const costoPremio = Math.max(0.5, Number(costoInput) || negocio.costo_premio_pen || 9.5);
+    const ingresosVisitas = totalVisitas * ticketProm;
+    const ingresosReferidos = totalReferidos * ticketProm;
+    const ingresosBrutos = ingresosVisitas + ingresosReferidos;
+    const costoPremios = totalCanjes * costoPremio;
+    const beneficioNeto = ingresosBrutos - costoPremios;
+    const roiPct =
+      costoPremios > 0 ? Math.round(((ingresosBrutos - costoPremios) / costoPremios) * 100) : 100;
 
     return {
       totalClientes,
@@ -85,8 +122,22 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
       readyCount: ready,
       inactivos15,
       detractores,
+      totalReferidos,
+      ingresosBrutos,
+      ingresosReferidos,
+      costoPremios,
+      beneficioNeto,
+      roiPct,
     };
-  }, [clientes, encuestas, periodo]);
+  }, [
+    clientes,
+    costoInput,
+    encuestas,
+    negocio.costo_premio_pen,
+    negocio.ticket_promedio_pen,
+    periodo,
+    ticketInput,
+  ]);
 
   const handleReactivate = async () => {
     setReactivating(true);
@@ -94,6 +145,19 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
       await onReactivateInactive();
     } finally {
       setReactivating(false);
+    }
+  };
+
+  const handleSaveRoi = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingRoi(true);
+    try {
+      await onSaveRoiParams({
+        ticket_promedio_pen: Math.max(1, Number(ticketInput) || 22),
+        costo_premio_pen: Math.max(0.5, Number(costoInput) || 9.5),
+      });
+    } finally {
+      setSavingRoi(false);
     }
   };
 
@@ -123,6 +187,25 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
             <span className="w-2 h-2 rounded-full bg-[#D99B16]" />
             EN VIVO
           </span>
+
+          {happyHourStatus.enabled && (
+            <button
+              type="button"
+              onClick={() => onNavigateSection('recompensa')}
+              className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-bold ${
+                happyHourStatus.isActiveNow
+                  ? 'bg-[#0F4C45] text-[#F2B632]'
+                  : 'bg-white border border-black/10 text-[#354440]'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>
+                {happyHourStatus.isActiveNow
+                  ? `Hora Feliz ${happyHourStatus.multiplier}x ACTIVA`
+                  : `Hora Feliz: ${happyHourStatus.scheduleSummary}`}
+              </span>
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -158,7 +241,7 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
             Resumen Ejecutivo · {negocio.nombre}
           </h2>
           <p className="text-xs text-white/80 mt-1">
-            Salud del club de fidelización y recurrencia en tiempo real.
+            Salud del club de fidelización, retorno financiero (ROI) y recurrencia en tiempo real.
           </p>
         </div>
 
@@ -176,7 +259,7 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
               <Users className="w-4 h-4" />
             </span>
             <span className="inline-flex items-center gap-0.5 rounded-lg bg-[#E8F1EE] text-[#0F4C45] px-2 py-0.5 text-[11px] font-bold">
-              <TrendingUp className="w-3 h-3" /> +18%
+              <UserPlus className="w-3 h-3" /> {stats.totalReferidos} ref.
             </span>
           </div>
           <p className="text-2xl font-bold tabular-nums text-[#14201E]">{stats.totalClientes}</p>
@@ -225,6 +308,104 @@ export const ResumenSection: React.FC<ResumenSectionProps> = ({
           <p className="text-xs font-semibold text-[#4A5A56]">Satisfacción Media</p>
         </div>
       </div>
+
+      {/* PANEL ROI DEL CLUB (VALOR FINANCIERO PARA EL DUEÑO) */}
+      <section className="rounded-3xl bg-white p-5 sm:p-6 border border-black/5 shadow-sm space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <span className="w-10 h-10 rounded-2xl bg-[#FEF6E0] text-[#7A5600] flex items-center justify-center shrink-0">
+              <BarChart3 className="w-5 h-5" />
+            </span>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-bold text-[#14201E]">Panel ROI del Club</h3>
+                <span className="rounded-lg bg-[#E8F1EE] px-2.5 py-0.5 text-[11px] font-bold text-[#0F4C45] tabular-nums">
+                  ROI {stats.roiPct}%
+                </span>
+              </div>
+              <p className="text-xs text-[#546560] mt-0.5">
+                Retorno estimado por visitas recurrentes y referidos descontando el costo real de los premios entregados.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSaveRoi} className="flex flex-wrap items-end gap-2">
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-[#546560] mb-1">
+                Ticket prom. (S/)
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min={1}
+                value={ticketInput}
+                onChange={(e) => setTicketInput(e.target.value)}
+                className="w-24 rounded-xl bg-[#F3F6F4] px-3 py-1.5 text-xs font-bold tabular-nums text-[#14201E] min-h-[36px]"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase text-[#546560] mb-1">
+                Costo premio (S/)
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                min={0.5}
+                value={costoInput}
+                onChange={(e) => setCostoInput(e.target.value)}
+                className="w-24 rounded-xl bg-[#F3F6F4] px-3 py-1.5 text-xs font-bold tabular-nums text-[#14201E] min-h-[36px]"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingRoi}
+              className="rounded-xl bg-[#0F4C45] px-3.5 py-2 text-xs font-bold text-white min-h-[36px] whitespace-nowrap"
+            >
+              {savingRoi ? 'Guardando...' : 'Actualizar ROI'}
+            </button>
+          </form>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="rounded-2xl bg-[#F7F9F8] p-4 border border-black/5">
+            <p className="text-[11px] font-semibold text-[#546560]">Ingresos por Recurrencia</p>
+            <p className="text-xl font-bold tabular-nums text-[#0F4C45] mt-1">
+              S/ {stats.ingresosBrutos.toFixed(2)}
+            </p>
+            <p className="text-[11px] text-[#6A7B76] mt-0.5 tabular-nums">
+              {stats.totalVisitas} visitas + {stats.totalReferidos} referidos
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-[#F7F9F8] p-4 border border-black/5">
+            <p className="text-[11px] font-semibold text-[#546560]">Costo de Premios</p>
+            <p className="text-xl font-bold tabular-nums text-[#14201E] mt-1">
+              - S/ {stats.costoPremios.toFixed(2)}
+            </p>
+            <p className="text-[11px] text-[#6A7B76] mt-0.5 tabular-nums">
+              {stats.totalCanjes} canje(s) entregados
+            </p>
+          </div>
+
+          <div className="rounded-2xl bg-[#E8F1EE] p-4 border border-[#0F4C45]/10">
+            <p className="text-[11px] font-semibold text-[#0F4C45]">Beneficio Neto del Club</p>
+            <p className="text-xl font-bold tabular-nums text-[#0F4C45] mt-1">
+              S/ {stats.beneficioNeto.toFixed(2)}
+            </p>
+            <p className="text-[11px] text-[#354440] mt-0.5">Margen generado por lealtad</p>
+          </div>
+
+          <div className="rounded-2xl bg-[#FEF6E0] p-4 border border-[#F2B632]/25">
+            <p className="text-[11px] font-semibold text-[#7A5600]">Impacto Referidos</p>
+            <p className="text-xl font-bold tabular-nums text-[#7A5600] mt-1">
+              +{stats.totalReferidos} clientes
+            </p>
+            <p className="text-[11px] text-[#6B4E08] mt-0.5 tabular-nums">
+              ~ S/ {stats.ingresosReferidos.toFixed(2)} atribuido
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Alerta si hay encuestas detractoras privadas <= 3★ */}
       {stats.detractores.length > 0 && (

@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Award,
   Check,
+  Clock,
   Copy,
   Edit3,
   KeyRound,
@@ -23,13 +24,17 @@ import {
   UserX,
 } from 'lucide-react';
 import { generateNumericDigits } from '@/src/shared/auth/accessProvisioning';
+import {
+  DEFAULT_HAPPY_HOUR_CONFIG,
+  evaluateHappyHour,
+} from '@/src/shared/utils/loyaltyExtras';
 import type {
   AdminAuditoriaRow,
   AdminCajero,
   AdminDispositivo,
   AdminEncuestaRow,
 } from '@/src/apps/admin/hooks/useAdminData';
-import type { Negocio, NivelConfig, Sede } from '@/src/types/database';
+import type { HappyHourConfig, Negocio, NivelConfig, Sede } from '@/src/types/database';
 
 /* ============================================================================
  * 1. RECOMPENSA & NIVELES
@@ -40,9 +45,25 @@ interface RecompensaSectionProps {
     sellos_para_premio: number;
     nombre_premio: string;
     intervalo_minimo_sellos_min: number;
+    referidos_activo: boolean;
+    referidos_sellos_invitador: number;
+    referidos_sellos_invitado: number;
+    happy_hour_config: HappyHourConfig;
+    ticket_promedio_pen: number;
+    costo_premio_pen: number;
   }) => Promise<void>;
   onUpdateNiveles: (niveles: NivelConfig[]) => Promise<void>;
 }
+
+const DIAS_SEMANA = [
+  { id: 1, label: 'Lun' },
+  { id: 2, label: 'Mar' },
+  { id: 3, label: 'Mié' },
+  { id: 4, label: 'Jue' },
+  { id: 5, label: 'Vie' },
+  { id: 6, label: 'Sáb' },
+  { id: 0, label: 'Dom' },
+];
 
 export const RecompensaSection: React.FC<RecompensaSectionProps> = ({
   negocio,
@@ -53,7 +74,35 @@ export const RecompensaSection: React.FC<RecompensaSectionProps> = ({
   const [nombrePremio, setNombrePremio] = useState(negocio.nombre_premio);
   const [intervaloMin, setIntervaloMin] = useState(negocio.intervalo_minimo_sellos_min);
   const [niveles, setNiveles] = useState<NivelConfig[]>(negocio.niveles_config);
+
+  const [referidosActivo, setReferidosActivo] = useState<boolean>(
+    negocio.referidos_activo ?? true
+  );
+  const [sellosInvitador, setSellosInvitador] = useState<number>(
+    negocio.referidos_sellos_invitador ?? 1
+  );
+  const [sellosInvitado, setSellosInvitado] = useState<number>(
+    negocio.referidos_sellos_invitado ?? 1
+  );
+
+  const [happyHour, setHappyHour] = useState<HappyHourConfig>(() => ({
+    ...DEFAULT_HAPPY_HOUR_CONFIG,
+    ...(negocio.happy_hour_config || {}),
+  }));
+
+  const [ticketProm, setTicketProm] = useState<number>(negocio.ticket_promedio_pen ?? 22);
+  const [costoPremio, setCostoPremio] = useState<number>(negocio.costo_premio_pen ?? 9.5);
   const [saving, setSaving] = useState(false);
+
+  const liveHappyHour = evaluateHappyHour(happyHour, negocio.zona_horaria);
+
+  const toggleHappyDay = (dayId: number) => {
+    setHappyHour((prev) => {
+      const exists = prev.dias.includes(dayId);
+      const nextDias = exists ? prev.dias.filter((d) => d !== dayId) : [...prev.dias, dayId];
+      return { ...prev, dias: nextDias };
+    });
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +112,16 @@ export const RecompensaSection: React.FC<RecompensaSectionProps> = ({
         sellos_para_premio: Math.max(4, Math.min(20, Number(sellosObjetivo) || 10)),
         nombre_premio: nombrePremio.trim() || 'Bebida de especialidad gratis',
         intervalo_minimo_sellos_min: Math.max(1, Number(intervaloMin) || 30),
+        referidos_activo: referidosActivo,
+        referidos_sellos_invitador: Math.max(1, Math.min(5, Number(sellosInvitador) || 1)),
+        referidos_sellos_invitado: Math.max(0, Math.min(5, Number(sellosInvitado) || 0)),
+        happy_hour_config: {
+          ...happyHour,
+          multiplicador: Math.max(2, Math.min(3, Number(happyHour.multiplicador) || 2)),
+          etiqueta: happyHour.etiqueta.trim() || 'Hora Feliz 2x Sellos',
+        },
+        ticket_promedio_pen: Math.max(1, Number(ticketProm) || 22),
+        costo_premio_pen: Math.max(0.5, Number(costoPremio) || 9.5),
       });
       await onUpdateNiveles(niveles);
     } finally {
@@ -127,6 +186,203 @@ export const RecompensaSection: React.FC<RecompensaSectionProps> = ({
         </div>
       </section>
 
+      {/* DOBLE SELLO EN HORAS MUERTAS (HAPPY HOUR) */}
+      <section className="rounded-3xl bg-white p-6 border border-black/5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <Clock className="w-5 h-5 text-[#0F4C45]" />
+            <div>
+              <h3 className="text-sm font-bold text-[#14201E]">
+                Doble Sello en Horas Muertas (Happy Hour)
+              </h3>
+              <p className="text-xs text-[#546560]">
+                Atrae clientes en horas de baja afluencia acreditando sellos dobles automáticamente en Caja POS.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {liveHappyHour.isActiveNow && (
+              <span className="rounded-lg bg-[#0F4C45] px-2.5 py-1 text-[11px] font-bold text-[#F2B632]">
+                ACTIVO AHORA ({liveHappyHour.multiplier}x)
+              </span>
+            )}
+            <label className="inline-flex items-center gap-2 rounded-xl bg-[#F3F6F4] px-3 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={happyHour.activo}
+                onChange={(e) => setHappyHour((p) => ({ ...p, activo: e.target.checked }))}
+                className="w-4 h-4 accent-[#0F4C45]"
+              />
+              <span className="text-xs font-bold text-[#14201E]">Activar</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <p className="text-[11px] font-semibold text-[#546560] mb-1.5">Días activos</p>
+            <div className="flex flex-wrap gap-1.5">
+              {DIAS_SEMANA.map((d) => {
+                const selected = happyHour.dias.includes(d.id);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => toggleHappyDay(d.id)}
+                    className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+                      selected
+                        ? 'bg-[#0F4C45] text-white'
+                        : 'bg-[#F3F6F4] text-[#4A5A56] hover:bg-[#E8F1EE]'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+                Hora inicio (Lima)
+              </label>
+              <input
+                type="time"
+                value={happyHour.hora_inicio}
+                onChange={(e) => setHappyHour((p) => ({ ...p, hora_inicio: e.target.value }))}
+                className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-xs font-bold tabular-nums min-h-[40px]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+                Hora fin (Lima)
+              </label>
+              <input
+                type="time"
+                value={happyHour.hora_fin}
+                onChange={(e) => setHappyHour((p) => ({ ...p, hora_fin: e.target.value }))}
+                className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-xs font-bold tabular-nums min-h-[40px]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+                Multiplicador
+              </label>
+              <select
+                value={happyHour.multiplicador}
+                onChange={(e) =>
+                  setHappyHour((p) => ({ ...p, multiplicador: Number(e.target.value) }))
+                }
+                className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-xs font-bold min-h-[40px]"
+              >
+                <option value={2}>2x Sellos (Doble)</option>
+                <option value={3}>3x Sellos (Triple)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+                Etiqueta en app
+              </label>
+              <input
+                type="text"
+                value={happyHour.etiqueta}
+                onChange={(e) => setHappyHour((p) => ({ ...p, etiqueta: e.target.value }))}
+                placeholder="Hora Feliz 2x Sellos"
+                className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-xs font-semibold min-h-[40px]"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PROGRAMA REFIERE A UN AMIGO */}
+      <section className="rounded-3xl bg-white p-6 border border-black/5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <UserPlus className="w-5 h-5 text-[#0F4C45]" />
+            <div>
+              <h3 className="text-sm font-bold text-[#14201E]">Programa Refiere a un Amigo</h3>
+              <p className="text-xs text-[#546560]">
+                Cero fraude: los sellos de referido se acreditan únicamente cuando el amigo realiza su 1.ª compra en Caja POS.
+              </p>
+            </div>
+          </div>
+
+          <label className="inline-flex items-center gap-2 rounded-xl bg-[#F3F6F4] px-3 py-2 cursor-pointer self-start sm:self-center">
+            <input
+              type="checkbox"
+              checked={referidosActivo}
+              onChange={(e) => setReferidosActivo(e.target.checked)}
+              className="w-4 h-4 accent-[#0F4C45]"
+            />
+            <span className="text-xs font-bold text-[#14201E]">Activo</span>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+              Sellos para quien invita
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={5}
+              value={sellosInvitador}
+              onChange={(e) => setSellosInvitador(Number(e.target.value))}
+              className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-sm font-bold tabular-nums min-h-[42px]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+              Sellos extra para el invitado
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={5}
+              value={sellosInvitado}
+              onChange={(e) => setSellosInvitado(Number(e.target.value))}
+              className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-sm font-bold tabular-nums min-h-[42px]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+              Ticket promedio ROI (S/)
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              min={1}
+              value={ticketProm}
+              onChange={(e) => setTicketProm(Number(e.target.value))}
+              className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-sm font-bold tabular-nums min-h-[42px]"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-semibold text-[#546560] mb-1">
+              Costo promedio premio (S/)
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              min={0.5}
+              value={costoPremio}
+              onChange={(e) => setCostoPremio(Number(e.target.value))}
+              className="w-full rounded-xl bg-[#F3F6F4] px-3 py-2 text-sm font-bold tabular-nums min-h-[42px]"
+            />
+          </div>
+        </div>
+      </section>
+
       <section className="rounded-3xl bg-white p-6 border border-black/5 shadow-sm space-y-4">
         <div>
           <h3 className="text-sm font-bold text-[#14201E]">Niveles de Lealtad (Bambú / Plata / Oro)</h3>
@@ -183,7 +439,7 @@ export const RecompensaSection: React.FC<RecompensaSectionProps> = ({
             className="inline-flex items-center gap-2 rounded-xl bg-[#0F4C45] px-5 py-3 text-xs font-bold text-white min-h-[44px]"
           >
             <Save className="w-4 h-4 text-[#F2B632]" />
-            <span>{saving ? 'Guardando...' : 'Guardar Recompensa y Niveles'}</span>
+            <span>{saving ? 'Guardando...' : 'Guardar Recompensa y Estrategias'}</span>
           </button>
         </div>
       </section>
