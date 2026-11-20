@@ -119,11 +119,18 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
   const [clientDismissed, setClientDismissed] = useState(false);
   const [muted, setMuted] = useState<boolean>(() => getSplashSoundMuted());
   const revealSoundPlayedRef = useRef(false);
+  const readySoundPlayedRef = useRef(false);
 
   const phrase = useMemo(
     () => MOTIVATING_PHRASES[Math.floor(Math.random() * MOTIVATING_PHRASES.length)],
     []
   );
+
+  const triggerReadyChimeOnce = () => {
+    if (readySoundPlayedRef.current) return;
+    readySoundPlayedRef.current = true;
+    void playWarmCoffeeChime('enter', muted);
+  };
 
   useEffect(() => {
     if (!installedLaunch) return;
@@ -158,6 +165,14 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
     ? installedLaunch && !clientDismissed
     : installedLaunch && !(minElapsed && appReady);
 
+  const prevVisibleRef = useRef(visible);
+  useEffect(() => {
+    if (prevVisibleRef.current && !visible && installedLaunch) {
+      triggerReadyChimeOnce();
+    }
+    prevVisibleRef.current = visible;
+  }, [visible, installedLaunch, muted]);
+
   const brandName = negocio?.nombre || 'Olivia Café';
   const meta = ROLE_META[appRole];
   const RoleIcon = meta.Icon;
@@ -176,7 +191,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
   };
 
   const handleEnterClient = () => {
-    void playWarmCoffeeChime('enter', muted);
+    triggerReadyChimeOnce();
     try {
       if (navigator.vibrate) navigator.vibrate(25);
     } catch {
@@ -538,20 +553,19 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
                 </button>
               </motion.div>
             )}
+            {/* Barra luminosa de carga posicionada más arriba para mejor visibilidad */}
+            <div className="mt-6 w-44 h-1.5 rounded-full bg-white/15 overflow-hidden shadow-inner">
+              <motion.div
+                initial={{ x: '-100%' }}
+                animate={{ x: '0%' }}
+                transition={{
+                  duration: isClient ? clientAutoCloseMs / 1000 : 1.1,
+                  ease: isClient ? 'linear' : [0.22, 1, 0.36, 1],
+                }}
+                className="h-full w-full rounded-full bg-gradient-to-r from-[#F2B632]/75 via-[#F2B632] to-white"
+              />
+            </div>
           </motion.div>
-
-          {/* Barra luminosa inferior sutil */}
-          <div className="absolute bottom-12 w-36 h-1 rounded-full bg-white/10 overflow-hidden">
-            <motion.div
-              initial={{ x: '-100%' }}
-              animate={{ x: '0%' }}
-              transition={{
-                duration: isClient ? clientAutoCloseMs / 1000 : 1.1,
-                ease: isClient ? 'linear' : [0.22, 1, 0.36, 1],
-              }}
-              className="h-full w-full rounded-full bg-gradient-to-r from-[#F2B632]/60 via-[#F2B632] to-white"
-            />
-          </div>
         </motion.div>
       )}
     </AnimatePresence>

@@ -73,23 +73,23 @@ export async function playWarmCoffeeChime(
         osc.stop(startAt + 1.1);
       });
     } else {
-      // Campanita ascendente dorada al pulsar "Empezar": G5 -> D6
-      const notes = [783.99, 1174.66];
+      // Toque corto y limpio de "¡Listo!" al entrar al sistema: G5 -> E6 (~0.48 s)
+      const notes = [783.99, 1318.51];
       notes.forEach((freq, idx) => {
         const osc = ctx.createOscillator();
         const noteGain = ctx.createGain();
         osc.type = 'sine';
-        const startAt = now + idx * 0.09;
+        const startAt = now + idx * 0.085;
         osc.frequency.setValueAtTime(freq, startAt);
 
         noteGain.gain.setValueAtTime(0.0001, startAt);
-        noteGain.gain.exponentialRampToValueAtTime(0.065, startAt + 0.025);
-        noteGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.72);
+        noteGain.gain.exponentialRampToValueAtTime(idx === 0 ? 0.05 : 0.06, startAt + 0.02);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.45);
 
         osc.connect(noteGain);
         noteGain.connect(masterGain);
         osc.start(startAt);
-        osc.stop(startAt + 0.76);
+        osc.stop(startAt + 0.48);
       });
     }
   } catch {
