@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Coffee, CreditCard, Gift, History, Sparkles, Tag, User, Volume2, VolumeX, X } from 'lucide-react';
+import { Coffee, CreditCard, Gift, Laptop, Sparkles, Tag, User, Volume2, VolumeX, X } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/src/shared/auth/AuthContext';
 import { ThemeProvider, useTheme } from '@/src/shared/theme/ThemeProvider';
 import { AppHeader } from '@/src/shared/components/AppHeader';
@@ -18,14 +18,16 @@ import {
 import { useClientData } from '@/src/apps/client/hooks/useClientData';
 import { CartillaTab } from '@/src/apps/client/components/CartillaTab';
 import { CartaTab } from '@/src/apps/client/components/CartaTab';
+import { EspaciosClientTab } from '@/src/apps/client/components/EspaciosClientTab';
 import { PromosTab } from '@/src/apps/client/components/PromosTab';
 import { HistorialTab } from '@/src/apps/client/components/HistorialTab';
 import { PerfilTab } from '@/src/apps/client/components/PerfilTab';
 
-type ClientTab = 'cartilla' | 'carta' | 'promos' | 'historial' | 'perfil';
+type ClientTab = 'cartilla' | 'carta' | 'espacios' | 'promos' | 'historial' | 'perfil';
 
 function resolveTabFromPath(pathname: string): ClientTab {
   if (pathname.includes('/carta')) return 'carta';
+  if (pathname.includes('/espacios')) return 'espacios';
   if (pathname.includes('/promos')) return 'promos';
   if (pathname.includes('/historial')) return 'historial';
   if (pathname.includes('/perfil')) return 'perfil';
@@ -80,6 +82,12 @@ const ClientAuthAndShell: React.FC = () => {
     promos,
     cupones,
     cartaItems,
+    sedes,
+    espaciosCoworking,
+    reservasCliente,
+    reservasOcupacion,
+    coworkingNotice,
+    dismissCoworkingNotice,
     happyHourStatus,
     qrState,
     ratedToday,
@@ -92,6 +100,9 @@ const ClientAuthAndShell: React.FC = () => {
     reclamarBonusMaps,
     activarPushYBonus,
     actualizarPerfil,
+    crearReservaCoworking,
+    adjuntarComprobanteYape,
+    cancelarReservaCoworking,
   } = useClientData();
 
   if (!isAuthenticated) {
@@ -113,6 +124,13 @@ const ClientAuthAndShell: React.FC = () => {
   };
 
   const activeCuponesCount = cupones.filter((c) => c.estado === 'activo').length;
+  const activeReservasCount = reservasCliente.filter(
+    (r) =>
+      r.estado === 'pendiente_pago' ||
+      r.estado === 'yape_por_validar' ||
+      r.estado === 'confirmada' ||
+      r.estado === 'rechazada'
+  ).length;
 
   return (
     <div className="min-h-dvh flex flex-col bg-[var(--brand-tertiary)]">
@@ -210,6 +228,45 @@ const ClientAuthAndShell: React.FC = () => {
           </section>
         )}
 
+        {coworkingNotice && (
+          <section
+            role="status"
+            aria-live="polite"
+            className={`rounded-3xl p-4 shadow-md border flex items-start justify-between gap-3 ${
+              coworkingNotice.tone === 'success'
+                ? 'bg-[#E8F1EE] border-[#0F4C45]/25 text-[#14201E]'
+                : 'bg-[#FEF6E0] border-[#F2B632] text-[#14201E]'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <Laptop className="w-5 h-5 text-[#0F4C45] shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold">{coworkingNotice.title}</p>
+                <p className="text-xs text-[#354440] mt-0.5">{coworkingNotice.body}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {activeTab !== 'espacios' && (
+                <button
+                  type="button"
+                  onClick={() => handleTabChange('espacios')}
+                  className="rounded-xl bg-[#0F4C45] px-3 py-1.5 text-[11px] font-bold text-white"
+                >
+                  Ver mesa
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={dismissCoworkingNotice}
+                aria-label="Cerrar aviso coworking"
+                className="w-8 h-8 rounded-xl hover:bg-black/5 flex items-center justify-center text-[#546560]"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </section>
+        )}
+
         {error && (
           <p role="alert" className="rounded-2xl bg-red-50 text-red-700 px-4 py-3 text-xs font-medium">
             {error}
@@ -237,6 +294,8 @@ const ClientAuthAndShell: React.FC = () => {
                 onRefreshQr={() => void refreshQrToken()}
                 onRate={enviarEncuesta}
                 onClaimMapsBonus={reclamarBonusMaps}
+                onOpenEspacios={() => handleTabChange('espacios')}
+                onOpenHistorial={() => handleTabChange('historial')}
               />
             )}
 
@@ -246,6 +305,20 @@ const ClientAuthAndShell: React.FC = () => {
                 happyHourStatus={happyHourStatus}
                 whatsappNumber={negocio.whatsapp_contacto_numero || '+51987111222'}
                 negocioNombre={negocio.nombre}
+              />
+            )}
+
+            {activeTab === 'espacios' && (
+              <EspaciosClientTab
+                negocio={negocio}
+                sedes={sedes}
+                espacios={espaciosCoworking}
+                cartaItems={cartaItems}
+                reservasCliente={reservasCliente}
+                reservasOcupacion={reservasOcupacion}
+                onCrearReserva={crearReservaCoworking}
+                onAdjuntarYape={adjuntarComprobanteYape}
+                onCancelarReserva={cancelarReservaCoworking}
               />
             )}
 
@@ -275,6 +348,7 @@ const ClientAuthAndShell: React.FC = () => {
                 onUpdateProfile={actualizarPerfil}
                 onClaimMapsBonus={reclamarBonusMaps}
                 onSignOut={signOut}
+                onOpenHistorial={() => handleTabChange('historial')}
               />
             )}
           </>
@@ -290,12 +364,17 @@ const ClientAuthAndShell: React.FC = () => {
             { id: 'cartilla' as const, label: 'Cartilla', icon: CreditCard, badge: 0 },
             { id: 'carta' as const, label: 'Carta', icon: Coffee, badge: 0 },
             {
+              id: 'espacios' as const,
+              label: 'Espacios',
+              icon: Laptop,
+              badge: activeReservasCount,
+            },
+            {
               id: 'promos' as const,
               label: 'Promos',
               icon: Tag,
               badge: activeCuponesCount || promos.length,
             },
-            { id: 'historial' as const, label: 'Historial', icon: History, badge: 0 },
             { id: 'perfil' as const, label: 'Perfil', icon: User, badge: 0 },
           ].map((item) => {
             const Icon = item.icon;

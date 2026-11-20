@@ -4,16 +4,23 @@ import { useTheme } from '@/src/shared/theme/ThemeProvider';
 import type {
   CanalMensaje,
   CartaItem,
+  EspacioCoworking,
   Negocio,
   NivelConfig,
   NivelLealtad,
   Promocion,
+  ReservaCoworking,
   Sede,
 } from '@/src/types/database';
 import {
   readLocalCartaItems,
   writeLocalCartaItems,
 } from '@/src/shared/utils/loyaltyExtras';
+import {
+  readLocalEspacios,
+  readLocalReservas,
+  writeLocalEspacios,
+} from '@/src/shared/utils/coworkingHelpers';
 import {
   createPosUserByAdminLocal,
   listLocalAccounts,
@@ -340,6 +347,12 @@ export function useAdminData(supabaseReady: boolean) {
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState<AdminDemoStore>(() => buildInitialAdminDemoStore(negocio));
   const [cartaItems, setCartaItems] = useState<CartaItem[]>(() => readLocalCartaItems(negocio.id));
+  const [espaciosCoworking, setEspaciosCoworking] = useState<EspacioCoworking[]>(() =>
+    readLocalEspacios(negocio.id)
+  );
+  const [reservasCoworking, setReservasCoworking] = useState<ReservaCoworking[]>(() =>
+    readLocalReservas(negocio.id)
+  );
   const [actionToast, setActionToast] = useState<string | null>(null);
 
   const notify = useCallback((msg: string) => {
@@ -372,6 +385,8 @@ export function useAdminData(supabaseReady: boolean) {
           { data: audData },
           { data: encData },
           { data: cartaData },
+          { data: espaciosData },
+          { data: reservasData },
         ] = await Promise.all([
           supabase.from('sedes').select('*').eq('negocio_id', negocio.id),
           supabase
@@ -411,6 +426,18 @@ export function useAdminData(supabaseReady: boolean) {
             .select('*')
             .eq('negocio_id', negocio.id)
             .order('orden', { ascending: true }),
+          supabase
+            .from('espacios_coworking')
+            .select('*')
+            .eq('negocio_id', negocio.id)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('reservas_coworking')
+            .select('*, clientes(nombre, celular), espacios_coworking(nombre)')
+            .eq('negocio_id', negocio.id)
+            .order('fecha', { ascending: false })
+            .order('hora_inicio', { ascending: true })
+            .limit(80),
         ]);
 
         const sedesList = (sedesData as Sede[]) || [];
@@ -446,6 +473,35 @@ export function useAdminData(supabaseReady: boolean) {
           writeLocalCartaItems(negocio.id, cartaData as CartaItem[]);
         } else {
           setCartaItems(readLocalCartaItems(negocio.id));
+        }
+
+        if (Array.isArray(espaciosData) && espaciosData.length > 0) {
+          setEspaciosCoworking(espaciosData as EspacioCoworking[]);
+          writeLocalEspacios(negocio.id, espaciosData as EspacioCoworking[]);
+        } else {
+          setEspaciosCoworking(readLocalEspacios(negocio.id));
+        }
+
+        if (Array.isArray(reservasData)) {
+          const mappedReservas: ReservaCoworking[] = (reservasData as Array<Record<string, unknown>>).map(
+            (r) => {
+              const cliObj = (r.clientes as Record<string, unknown> | null) || null;
+              const espObj = (r.espacios_coworking as Record<string, unknown> | null) || null;
+              return {
+                ...(r as unknown as ReservaCoworking),
+                cliente_nombre: String(cliObj?.nombre || r.cliente_nombre || 'Cliente'),
+                cliente_celular: String(cliObj?.celular || r.cliente_celular || ''),
+                espacio_nombre: String(espObj?.nombre || r.espacio_nombre || 'Mesa Cowork'),
+                sede_nombre: sedeNameMap.get(String(r.sede_id)) || 'Sede',
+                items_pedido: Array.isArray(r.items_pedido)
+                  ? (r.items_pedido as ReservaCoworking['items_pedido'])
+                  : [],
+              };
+            }
+          );
+          setReservasCoworking(mappedReservas);
+        } else {
+          setReservasCoworking(readLocalReservas(negocio.id));
         }
 
         setStore((prev) => ({
@@ -522,9 +578,13 @@ export function useAdminData(supabaseReady: boolean) {
         setStore(init);
       }
       setCartaItems(readLocalCartaItems(negocio.id));
+      setEspaciosCoworking(readLocalEspacios(negocio.id));
+      setReservasCoworking(readLocalReservas(negocio.id));
     } catch {
       setStore(buildInitialAdminDemoStore(negocio));
       setCartaItems(readLocalCartaItems(negocio.id));
+      setEspaciosCoworking(readLocalEspacios(negocio.id));
+      setReservasCoworking(readLocalReservas(negocio.id));
     } finally {
       setLoading(false);
     }
@@ -987,6 +1047,11 @@ export function useAdminData(supabaseReady: boolean) {
           | 'happy_hour_config'
           | 'ticket_promedio_pen'
           | 'costo_premio_pen'
+          | 'yape_numero'
+          | 'yape_titular'
+          | 'coworking_activo'
+          | 'coworking_consumo_minimo_pen'
+          | 'coworking_tolerancia_min'
         >
       >
     ) => {
@@ -1228,6 +1293,119 @@ export function useAdminData(supabaseReady: boolean) {
     [notify, persistStore, store, supabaseReady]
   );
 
+  const crearEspacio = useCallback(
+    async (input: {
+      sede_id: string;
+      nombre: string;
+      capacidad: number;
+      descripcion: string;
+      equipamiento: string;
+      consumo_minimo_pen: number;
+      duracion_bloque_min: number;
+      hora_apertura: string;
+      hora_cierre: string;
+    }) => {
+      const newEsp: EspacioCoworking = {
+        id: `esp-${Date.now()}`,
+        negocio_id: negocio.id,
+        sede_id: input.sede_id,
+        nombre: input.nombre,
+        capacidad: input.capacidad,
+        descripcion: input.descripcion,
+        equipamiento: input.equipamiento,
+        consumo_minimo_pen: input.consumo_minimo_pen,
+        duracion_bloque_min: input.duracion_bloque_min,
+        hora_apertura: input.hora_apertura,
+        hora_cierre: input.hora_cierre,
+        activo: true,
+      };
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        const { data } = await supabase
+          .from('espacios_coworking')
+          .insert({
+            negocio_id: negocio.id,
+            sede_id: input.sede_id,
+            nombre: input.nombre,
+            capacidad: input.capacidad,
+            descripcion: input.descripcion,
+            equipamiento: input.equipamiento,
+            consumo_minimo_pen: input.consumo_minimo_pen,
+            duracion_bloque_min: input.duracion_bloque_min,
+            hora_apertura: input.hora_apertura,
+            hora_cierre: input.hora_cierre,
+            activo: true,
+          })
+          .select()
+          .single();
+        if (data) newEsp.id = String((data as Record<string, unknown>).id);
+      }
+      const next = [...espaciosCoworking, newEsp];
+      setEspaciosCoworking(next);
+      writeLocalEspacios(negocio.id, next);
+      notify(`Mesa "${input.nombre}" habilitada para coworking.`);
+    },
+    [espaciosCoworking, negocio.id, notify, supabaseReady]
+  );
+
+  const actualizarEspacio = useCallback(
+    async (
+      id: string,
+      input: {
+        sede_id: string;
+        nombre: string;
+        capacidad: number;
+        descripcion: string;
+        equipamiento: string;
+        consumo_minimo_pen: number;
+        duracion_bloque_min: number;
+        hora_apertura: string;
+        hora_cierre: string;
+      }
+    ) => {
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase.from('espacios_coworking').update(input).eq('id', id);
+      }
+      const next = espaciosCoworking.map((e) => (e.id === id ? { ...e, ...input } : e));
+      setEspaciosCoworking(next);
+      writeLocalEspacios(negocio.id, next);
+      notify('Espacio coworking actualizado.');
+    },
+    [espaciosCoworking, negocio.id, notify, supabaseReady]
+  );
+
+  const toggleEspacio = useCallback(
+    async (id: string) => {
+      const target = espaciosCoworking.find((e) => e.id === id);
+      if (!target) return;
+      const nextActive = !target.activo;
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase.from('espacios_coworking').update({ activo: nextActive }).eq('id', id);
+      }
+      const next = espaciosCoworking.map((e) => (e.id === id ? { ...e, activo: nextActive } : e));
+      setEspaciosCoworking(next);
+      writeLocalEspacios(negocio.id, next);
+      notify(nextActive ? 'Mesa cowork habilitada.' : 'Mesa cowork pausada.');
+    },
+    [espaciosCoworking, negocio.id, notify, supabaseReady]
+  );
+
+  const eliminarEspacio = useCallback(
+    async (id: string) => {
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady) {
+        await supabase.from('espacios_coworking').delete().eq('id', id);
+      }
+      const next = espaciosCoworking.filter((e) => e.id !== id);
+      setEspaciosCoworking(next);
+      writeLocalEspacios(negocio.id, next);
+      notify('Espacio coworking eliminado.');
+    },
+    [espaciosCoworking, negocio.id, notify, supabaseReady]
+  );
+
   return {
     loading,
     negocio,
@@ -1241,6 +1419,8 @@ export function useAdminData(supabaseReady: boolean) {
     encuestas: store.encuestas,
     campanas: store.campanas,
     cartaItems,
+    espaciosCoworking,
+    reservasCoworking,
     evolutionStatus: store.evolutionStatus,
     actionToast,
     exportClientesCsv,
@@ -1265,5 +1445,9 @@ export function useAdminData(supabaseReady: boolean) {
     actualizarCartaItem,
     toggleCartaItem,
     eliminarCartaItem,
+    crearEspacio,
+    actualizarEspacio,
+    toggleEspacio,
+    eliminarEspacio,
   };
 }

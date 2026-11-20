@@ -17,10 +17,18 @@ interface StampNotifyBody {
   cliente_nombre?: string;
   dispositivo_id?: string;
   cajero_id?: string;
-  kind?: 'stamp' | 'redeem';
+  kind?:
+    | 'stamp'
+    | 'redeem'
+    | 'coworking_confirmed'
+    | 'coworking_rejected'
+    | 'coworking_reminder'
+    | 'coworking_checkin';
   cantidad_agregada?: number;
   sellos_actuales?: number;
   sellos_objetivo?: number;
+  custom_title?: string;
+  custom_body?: string;
   url?: string;
 }
 
@@ -38,14 +46,45 @@ function buildServerStampMessage(params: {
   sellosObjetivo: number;
   nombrePremio: string;
   cantidadAgregada: number;
-  kind: 'stamp' | 'redeem';
+  kind: NonNullable<StampNotifyBody['kind']>;
+  customTitle?: string;
+  customBody?: string;
 }) {
+  if (params.customTitle && params.customBody) {
+    return { title: params.customTitle, body: params.customBody };
+  }
+
   const firstName = params.nombreCliente.trim().split(/\s+/)[0] || '';
   const saludo = firstName ? `, ${firstName}` : '';
   const objetivo = Math.max(1, params.sellosObjetivo || 10);
   const actuales = Math.max(0, Math.min(objetivo, params.sellosActuales));
   const faltan = Math.max(0, objetivo - actuales);
   const sumaLabel = params.cantidadAgregada > 1 ? `+${params.cantidadAgregada} sellos` : '+1 sello';
+
+  if (params.kind === 'coworking_confirmed') {
+    return {
+      title: `✅ Mesa separada en ${params.negocioNombre}`,
+      body: `¡Listo${saludo}! Validamos tu Yape y tu mesa con café te espera. ¡Muchos éxitos en tu reunión!`,
+    };
+  }
+  if (params.kind === 'coworking_reminder') {
+    return {
+      title: `⏰ Tu reunión es pronto en ${params.negocioNombre}`,
+      body: `¡Mucho éxito${saludo}! Tu mesa con Wi-Fi y enchufes está lista para cerrar esa negociación.`,
+    };
+  }
+  if (params.kind === 'coworking_rejected') {
+    return {
+      title: `⚠️ Revisa tu comprobante en ${params.negocioNombre}`,
+      body: `Hola${saludo}, necesitamos verificar tu pago Yape. Ingresa a la app para subir otra captura.`,
+    };
+  }
+  if (params.kind === 'coworking_checkin') {
+    return {
+      title: `☕ ¡Bienvenido a tu mesa${saludo}!`,
+      body: `Ya estás en tu espacio de ${params.negocioNombre} y sumaste sello en tu cartilla. ¡Muchos éxitos hoy!`,
+    };
+  }
 
   if (params.kind === 'redeem') {
     return {
@@ -221,7 +260,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       body.nombre_premio ||
       'Café de Especialidad o Postre',
     cantidadAgregada: Math.max(1, body.cantidad_agregada || 1),
-    kind: body.kind === 'redeem' ? 'redeem' : 'stamp',
+    kind: body.kind || 'stamp',
+    customTitle: body.custom_title,
+    customBody: body.custom_body,
   });
 
   const slug = (negocio?.slug as string) || 'olivia';

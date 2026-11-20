@@ -20,7 +20,28 @@ import {
   readLocalCartaItems,
   type HappyHourEvaluation,
 } from '@/src/shared/utils/loyaltyExtras';
-import type { Canje, CartaItem, Cartilla, Cliente, Cupon, Promocion, Sello } from '@/src/types/database';
+import {
+  broadcastCoworkingSync,
+  COWORKING_EVENT_CHANNEL,
+  COWORKING_STORAGE_EVENT_KEY,
+  formatMinutesRemainingToMeeting,
+  readLocalEspacios,
+  readLocalReservas,
+  writeLocalReservas,
+} from '@/src/shared/utils/coworkingHelpers';
+import type {
+  Canje,
+  CartaItem,
+  Cartilla,
+  Cliente,
+  Cupon,
+  EspacioCoworking,
+  Promocion,
+  ReservaCoworking,
+  ReservaPedidoItem,
+  Sede,
+  Sello,
+} from '@/src/types/database';
 
 export interface QrTokenState {
   token: string;
@@ -256,12 +277,48 @@ export function useClientData() {
   const [cartaItems, setCartaItems] = useState<CartaItem[]>(() =>
     readLocalCartaItems(negocio.id).filter((i) => i.disponible)
   );
+  const [sedes, setSedes] = useState<Sede[]>(() => [
+    {
+      id: '22222222-2222-4222-8222-222222222221',
+      negocio_id: negocio.id,
+      nombre: 'Local Principal · Miraflores',
+      direccion: 'Av. La Mar 1240, Miraflores',
+      telefono: '+51 1 445 8920',
+      activo: true,
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: '22222222-2222-4222-8222-222222222222',
+      negocio_id: negocio.id,
+      nombre: 'Barra Express · San Isidro',
+      direccion: 'Calle Miguel Dasso 185, San Isidro',
+      telefono: '+51 1 422 3310',
+      activo: true,
+      created_at: new Date().toISOString(),
+    },
+  ]);
+  const [espaciosCoworking, setEspaciosCoworking] = useState<EspacioCoworking[]>(() =>
+    readLocalEspacios(negocio.id)
+  );
+  const [reservasOcupacion, setReservasOcupacion] = useState<ReservaCoworking[]>(() =>
+    readLocalReservas(negocio.id)
+  );
   const [happyHourStatus, setHappyHourStatus] = useState<HappyHourEvaluation>(() =>
     evaluateHappyHour(negocio.happy_hour_config, negocio.zona_horaria)
   );
   const [ratedToday, setRatedToday] = useState<number | null>(null);
   const [mapsBonusClaimed, setMapsBonusClaimed] = useState<boolean>(false);
   const [stampCelebration, setStampCelebration] = useState<StampCelebrationState | null>(null);
+  const [coworkingNotice, setCoworkingNotice] = useState<{
+    id: string;
+    title: string;
+    body: string;
+    tone: 'success' | 'warning';
+  } | null>(null);
+
+  const dismissCoworkingNotice = useCallback(() => {
+    setCoworkingNotice(null);
+  }, []);
 
   useEffect(() => {
     const updateHh = () =>
@@ -375,7 +432,7 @@ export function useClientData() {
           setCliente(cliData as Cliente);
           setCartilla(carData as Cartilla);
 
-          const [{ data: sellosData }, { data: canjesData }, { data: promosData }, { data: cuponesData }, { data: cartaData }] =
+          const [{ data: sellosData }, { data: canjesData }, { data: promosData }, { data: cuponesData }, { data: cartaData }, { data: sedesData }, { data: espData }, { data: resData }] =
             await Promise.all([
               supabase
                 .from('sellos')
@@ -407,6 +464,23 @@ export function useClientData() {
                 .eq('negocio_id', negocio.id)
                 .eq('disponible', true)
                 .order('orden', { ascending: true }),
+              supabase
+                .from('sedes')
+                .select('*')
+                .eq('negocio_id', negocio.id)
+                .eq('activo', true),
+              supabase
+                .from('espacios_coworking')
+                .select('*')
+                .eq('negocio_id', negocio.id)
+                .eq('activo', true),
+              supabase
+                .from('reservas_coworking')
+                .select('*, espacios_coworking(nombre)')
+                .eq('negocio_id', negocio.id)
+                .in('estado', ['pendiente_pago', 'yape_por_validar', 'confirmada', 'checkin', 'rechazada'])
+                .order('created_at', { ascending: false })
+                .limit(80),
             ]);
 
           setSellos((sellosData as Sello[]) || []);
@@ -418,6 +492,28 @@ export function useClientData() {
               ? (cartaData as CartaItem[])
               : readLocalCartaItems(negocio.id).filter((i) => i.disponible)
           );
+          if (Array.isArray(sedesData) && sedesData.length > 0) {
+            setSedes(sedesData as Sede[]);
+          }
+          setEspaciosCoworking(
+            Array.isArray(espData) && espData.length > 0
+              ? (espData as EspacioCoworking[])
+              : readLocalEspacios(negocio.id)
+          );
+          if (Array.isArray(resData)) {
+            setReservasOcupacion(
+              (resData as Array<Record<string, unknown>>).map((r) => {
+                const esp = (r.espacios_coworking as Record<string, unknown> | null) || null;
+                return {
+                  ...(r as unknown as ReservaCoworking),
+                  espacio_nombre: String(esp?.nombre || r.espacio_nombre || 'Mesa Cowork'),
+                  items_pedido: Array.isArray(r.items_pedido)
+                    ? (r.items_pedido as ReservaPedidoItem[])
+                    : [],
+                };
+              })
+            );
+          }
           setLoading(false);
           return;
         }
@@ -449,6 +545,8 @@ export function useClientData() {
       setMapsBonusClaimed(parsed.mapsBonusClaimed);
       setPromos(buildDemoPromos(negocio.id));
       setCartaItems(readLocalCartaItems(negocio.id).filter((i) => i.disponible));
+      setEspaciosCoworking(readLocalEspacios(negocio.id));
+      setReservasOcupacion(readLocalReservas(negocio.id));
     } catch {
       const fallback = buildInitialDemoStore(
         negocio.id,
@@ -463,6 +561,8 @@ export function useClientData() {
       setSellos(fallback.sellos);
       setPromos(buildDemoPromos(negocio.id));
       setCartaItems(readLocalCartaItems(negocio.id).filter((i) => i.disponible));
+      setEspaciosCoworking(readLocalEspacios(negocio.id));
+      setReservasOcupacion(readLocalReservas(negocio.id));
     } finally {
       setLoading(false);
     }
@@ -936,6 +1036,295 @@ export function useClientData() {
     [canjes, cartilla, cliente, cupones, mapsBonusClaimed, persistDemoStore, ratedToday, sellos, supabaseReady]
   );
 
+  // Escucha en vivo de cambios en reservas coworking (confirmación Yape, mensajes POS, check-in)
+  useEffect(() => {
+    const syncReservas = () => {
+      if (!supabaseReady || clienteId.startsWith('demo-')) {
+        setReservasOcupacion(readLocalReservas(negocio.id));
+      } else {
+        void loadData();
+      }
+    };
+
+    let ch: BroadcastChannel | null = null;
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      ch = new BroadcastChannel(COWORKING_EVENT_CHANNEL);
+      ch.onmessage = (
+        event: MessageEvent<{ clienteId?: string; tipo?: string }>
+      ) => {
+        syncReservas();
+        if (event.data?.clienteId === clienteId) {
+          if (event.data.tipo === 'confirmada') {
+            void playStampFeedbackSound('goal');
+            setCoworkingNotice({
+              id: `${Date.now()}`,
+              title: '✅ ¡Mesa separada y Yape confirmado!',
+              body: 'Caja confirmó tu pago. Tu mesa y tu café estarán listos para tu reunión. ¡Muchos éxitos!',
+              tone: 'success',
+            });
+          } else if (event.data.tipo === 'rechazada') {
+            setCoworkingNotice({
+              id: `${Date.now()}`,
+              title: '⚠️ Tienes un mensaje de Caja sobre tu reserva',
+              body: 'Revisa la pestaña Espacios para ver el detalle y volver a subir tu captura Yape.',
+              tone: 'warning',
+            });
+          }
+        }
+      };
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === COWORKING_STORAGE_EVENT_KEY || e.key?.startsWith('olivia_coworking_reservas_')) {
+        syncReservas();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    const supabase = getSupabaseClient();
+    let rtChannel: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
+    if (supabase && supabaseReady && !clienteId.startsWith('demo-')) {
+      rtChannel = supabase
+        .channel(`client-cowork-${clienteId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'reservas_coworking',
+            filter: `cliente_id=eq.${clienteId}`,
+          },
+          (payload) => {
+            void loadData();
+            const nextEstado = (payload.new as { estado?: string })?.estado;
+            if (nextEstado === 'confirmada') {
+              void playStampFeedbackSound('goal');
+              setCoworkingNotice({
+                id: `${Date.now()}`,
+                title: '✅ ¡Mesa separada y Yape confirmado!',
+                body: 'Tu mesa cowork y tu pedido mínimo están confirmados. ¡Muchos éxitos en tu reunión!',
+                tone: 'success',
+              });
+            } else if (nextEstado === 'rechazada') {
+              setCoworkingNotice({
+                id: `${Date.now()}`,
+                title: '⚠️ Caja envió una nota sobre tu Yape',
+                body: 'Entra a la pestaña Espacios para revisar el mensaje y adjuntar tu comprobante.',
+                tone: 'warning',
+              });
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      ch?.close();
+      window.removeEventListener('storage', onStorage);
+      if (supabase && rtChannel) void supabase.removeChannel(rtChannel);
+    };
+  }, [clienteId, loadData, negocio.id, supabaseReady]);
+
+  // Recordatorio automático previo a la reunión (entre 1 y 45 min antes)
+  useEffect(() => {
+    const checkUpcomingMeetings = () => {
+      const myConfirmed = reservasOcupacion.filter(
+        (r) => r.cliente_id === clienteId && r.estado === 'confirmada'
+      );
+      for (const res of myConfirmed) {
+        const minsLeft = formatMinutesRemainingToMeeting(
+          res.fecha,
+          res.hora_inicio,
+          negocio.zona_horaria
+        );
+        if (minsLeft === null || minsLeft < 1 || minsLeft > 45) continue;
+        const notifiedKey = `olivia_cowork_reminded_${res.id}`;
+        try {
+          if (localStorage.getItem(notifiedKey)) continue;
+          localStorage.setItem(notifiedKey, '1');
+        } catch {
+          // Ignore storage error
+        }
+        const firstName = (cliente?.nombre || 'Cliente').split(' ')[0];
+        const title = `⏰ ¡Tu reunión es en ${minsLeft} min, ${firstName}!`;
+        const body = `${res.espacio_nombre || 'Tu mesa'} y tu café te esperan en ${negocio.nombre}. ¡Muchos éxitos en tu negociación!`;
+        setCoworkingNotice({
+          id: `rem-${res.id}`,
+          title,
+          body,
+          tone: 'success',
+        });
+        void playStampFeedbackSound('stamp');
+        void showLocalBrowserStampNotification(title, body, `/c/${negocio.slug}/espacios`);
+      }
+    };
+
+    checkUpcomingMeetings();
+    const timer = window.setInterval(checkUpcomingMeetings, 60000);
+    return () => window.clearInterval(timer);
+  }, [cliente?.nombre, clienteId, negocio.nombre, negocio.slug, negocio.zona_horaria, reservasOcupacion]);
+
+  const crearReservaCoworking = useCallback(
+    async (input: {
+      sede_id: string;
+      espacio: EspacioCoworking;
+      fecha: string;
+      hora_inicio: string;
+      hora_fin: string;
+      personas: number;
+      motivo_reunion: string;
+      items_pedido: ReservaPedidoItem[];
+      total_pedido_pen: number;
+    }): Promise<{ reserva?: ReservaCoworking; error?: string }> => {
+      if (!cliente) return { error: 'Inicia sesión para separar tu mesa.' };
+      const nowIso = new Date().toISOString();
+      const codigo = `RES-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+
+      const newReserva: ReservaCoworking = {
+        id: `res-${Date.now()}`,
+        negocio_id: negocio.id,
+        sede_id: input.sede_id,
+        espacio_id: input.espacio.id,
+        espacio_nombre: input.espacio.nombre,
+        cliente_id: cliente.id,
+        cliente_nombre: cliente.nombre,
+        cliente_celular: cliente.celular,
+        codigo_reserva: codigo,
+        fecha: input.fecha,
+        hora_inicio: input.hora_inicio,
+        hora_fin: input.hora_fin,
+        personas: input.personas,
+        motivo_reunion: input.motivo_reunion,
+        items_pedido: input.items_pedido,
+        total_pedido_pen: input.total_pedido_pen,
+        estado: 'pendiente_pago',
+        yape_comprobante_base64: null,
+        yape_codigo_operacion: null,
+        mensaje_pos: null,
+        recordatorio_enviado: false,
+        validado_por_cajero_id: null,
+        created_at: nowIso,
+        updated_at: nowIso,
+      };
+
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady && !cliente.id.startsWith('demo-')) {
+        const { data, error: insErr } = await supabase
+          .from('reservas_coworking')
+          .insert({
+            negocio_id: negocio.id,
+            sede_id: input.sede_id,
+            espacio_id: input.espacio.id,
+            cliente_id: cliente.id,
+            codigo_reserva: codigo,
+            fecha: input.fecha,
+            hora_inicio: input.hora_inicio,
+            hora_fin: input.hora_fin,
+            personas: input.personas,
+            motivo_reunion: input.motivo_reunion,
+            items_pedido: input.items_pedido,
+            total_pedido_pen: input.total_pedido_pen,
+            estado: 'pendiente_pago',
+          })
+          .select()
+          .single();
+        if (insErr) return { error: insErr.message };
+        if (data) newReserva.id = String((data as Record<string, unknown>).id);
+      }
+
+      const nextList = [newReserva, ...reservasOcupacion];
+      setReservasOcupacion(nextList);
+      writeLocalReservas(negocio.id, nextList);
+      broadcastCoworkingSync({
+        negocioId: negocio.id,
+        reservaId: newReserva.id,
+        clienteId: cliente.id,
+        tipo: 'nueva_solicitud',
+        timestamp: nowIso,
+      });
+      return { reserva: newReserva };
+    },
+    [cliente, negocio.id, reservasOcupacion, supabaseReady]
+  );
+
+  const adjuntarComprobanteYape = useCallback(
+    async (
+      reservaId: string,
+      comprobanteBase64: string,
+      codigoOperacion?: string
+    ): Promise<{ ok: boolean; error?: string }> => {
+      if (!cliente) return { ok: false, error: 'Sin sesión' };
+      const nowIso = new Date().toISOString();
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady && !reservaId.startsWith('res-')) {
+        const { error: upErr } = await supabase
+          .from('reservas_coworking')
+          .update({
+            estado: 'yape_por_validar',
+            yape_comprobante_base64: comprobanteBase64,
+            yape_codigo_operacion: codigoOperacion?.trim() || null,
+            mensaje_pos: null,
+            updated_at: nowIso,
+          })
+          .eq('id', reservaId);
+        if (upErr) return { ok: false, error: upErr.message };
+      }
+
+      const nextList = reservasOcupacion.map((r) =>
+        r.id === reservaId
+          ? {
+              ...r,
+              estado: 'yape_por_validar' as const,
+              yape_comprobante_base64: comprobanteBase64,
+              yape_codigo_operacion: codigoOperacion?.trim() || null,
+              mensaje_pos: null,
+              updated_at: nowIso,
+            }
+          : r
+      );
+      setReservasOcupacion(nextList);
+      writeLocalReservas(negocio.id, nextList);
+      broadcastCoworkingSync({
+        negocioId: negocio.id,
+        reservaId,
+        clienteId: cliente.id,
+        tipo: 'yape_adjunto',
+        timestamp: nowIso,
+      });
+      return { ok: true };
+    },
+    [cliente, negocio.id, reservasOcupacion, supabaseReady]
+  );
+
+  const cancelarReservaCoworking = useCallback(
+    async (reservaId: string) => {
+      if (!cliente) return;
+      const nowIso = new Date().toISOString();
+      const supabase = getSupabaseClient();
+      if (supabase && supabaseReady && !reservaId.startsWith('res-')) {
+        await supabase
+          .from('reservas_coworking')
+          .update({ estado: 'cancelada', updated_at: nowIso })
+          .eq('id', reservaId);
+      }
+      const nextList = reservasOcupacion.map((r) =>
+        r.id === reservaId ? { ...r, estado: 'cancelada' as const, updated_at: nowIso } : r
+      );
+      setReservasOcupacion(nextList);
+      writeLocalReservas(negocio.id, nextList);
+      broadcastCoworkingSync({
+        negocioId: negocio.id,
+        reservaId,
+        clienteId: cliente.id,
+        tipo: 'cancelada',
+        timestamp: nowIso,
+      });
+    },
+    [cliente, negocio.id, reservasOcupacion, supabaseReady]
+  );
+
+  const reservasCliente = reservasOcupacion.filter((r) => r.cliente_id === clienteId);
+
   return {
     loading,
     error,
@@ -946,6 +1335,12 @@ export function useClientData() {
     promos,
     cupones,
     cartaItems,
+    sedes,
+    espaciosCoworking,
+    reservasCliente,
+    reservasOcupacion,
+    coworkingNotice,
+    dismissCoworkingNotice,
     happyHourStatus,
     qrState,
     ratedToday,
@@ -958,6 +1353,9 @@ export function useClientData() {
     reclamarBonusMaps,
     activarPushYBonus,
     actualizarPerfil,
+    crearReservaCoworking,
+    adjuntarComprobanteYape,
+    cancelarReservaCoworking,
     reload: loadData,
   };
 }

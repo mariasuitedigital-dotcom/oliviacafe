@@ -8,6 +8,7 @@ import {
   Coffee,
   FileSearch,
   KeyRound,
+  Laptop,
   MessageSquare,
   MoreHorizontal,
   Settings,
@@ -39,6 +40,7 @@ import {
 } from '@/src/apps/admin/components/RecompensaEquipoAjustesSections';
 import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
 import { CartaSection } from '@/src/apps/admin/components/CartaSection';
+import { EspaciosSection } from '@/src/apps/admin/components/EspaciosSection';
 import { AppSplashScreen } from '@/src/shared/components/AppSplashScreen';
 import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
 
@@ -47,6 +49,7 @@ type AdminSection =
   | 'clientes'
   | 'promociones'
   | 'carta'
+  | 'espacios'
   | 'automatizaciones'
   | 'whatsapp'
   | 'recompensa'
@@ -64,6 +67,7 @@ const ADMIN_NAV: Array<{
   { id: 'clientes', label: 'Clientes', shortLabel: 'Clientes', icon: Users },
   { id: 'promociones', label: 'Promociones', shortLabel: 'Promos', icon: Tag },
   { id: 'carta', label: 'Carta Digital', shortLabel: 'Carta', icon: Coffee },
+  { id: 'espacios', label: 'Espacios Cowork', shortLabel: 'Mesas', icon: Laptop },
   { id: 'automatizaciones', label: 'Automatizaciones', shortLabel: 'Flujos', icon: Bot },
   { id: 'whatsapp', label: 'WhatsApp', shortLabel: 'WhatsApp', icon: MessageSquare },
   { id: 'recompensa', label: 'Recompensa', shortLabel: 'Premio', icon: Award },
@@ -103,6 +107,8 @@ const AdminWorkspace: React.FC = () => {
     encuestas,
     campanas,
     cartaItems,
+    espaciosCoworking,
+    reservasCoworking,
     evolutionStatus,
     actionToast,
     exportClientesCsv,
@@ -127,6 +133,10 @@ const AdminWorkspace: React.FC = () => {
     actualizarCartaItem,
     toggleCartaItem,
     eliminarCartaItem,
+    crearEspacio,
+    actualizarEspacio,
+    toggleEspacio,
+    eliminarEspacio,
   } = useAdminData(supabaseReady);
 
   // Flujo único: Clave de 8 dígitos creada por Root + OTP primer ingreso
@@ -454,6 +464,20 @@ const AdminWorkspace: React.FC = () => {
                     onUpdateItem={actualizarCartaItem}
                     onToggleItem={toggleCartaItem}
                     onDeleteItem={eliminarCartaItem}
+                  />
+                )}
+
+                {activeSection === 'espacios' && (
+                  <EspaciosSection
+                    negocio={negocio}
+                    sedes={sedes}
+                    espacios={espaciosCoworking}
+                    reservas={reservasCoworking}
+                    onCreateEspacio={crearEspacio}
+                    onUpdateEspacio={actualizarEspacio}
+                    onToggleEspacio={toggleEspacio}
+                    onDeleteEspacio={eliminarEspacio}
+                    onNavigateAjustes={() => handleSelectSection('ajustes')}
                   />
                 )}
 

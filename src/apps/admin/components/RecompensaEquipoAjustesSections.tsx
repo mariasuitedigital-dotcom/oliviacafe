@@ -946,6 +946,11 @@ interface AjustesSectionProps {
     otp_requerido_login: boolean;
     otp_requerido_canje: boolean;
     texto_privacidad: string;
+    yape_numero: string | null;
+    yape_titular: string | null;
+    coworking_activo: boolean;
+    coworking_consumo_minimo_pen: number;
+    coworking_tolerancia_min: number;
   }) => Promise<void>;
 }
 
@@ -959,6 +964,13 @@ export const AjustesSection: React.FC<AjustesSectionProps> = ({ negocio, onSaveA
   const [otpLogin, setOtpLogin] = useState(negocio.otp_requerido_login);
   const [otpCanje, setOtpCanje] = useState(negocio.otp_requerido_canje);
   const [privacidad, setPrivacidad] = useState(negocio.texto_privacidad);
+  const [yapeNumero, setYapeNumero] = useState(negocio.yape_numero || '987111222');
+  const [yapeTitular, setYapeTitular] = useState(
+    negocio.yape_titular || 'Olivia Café Especialidad S.A.C.'
+  );
+  const [coworkingActivo, setCoworkingActivo] = useState(negocio.coworking_activo ?? true);
+  const [coworkMinimo, setCoworkMinimo] = useState(negocio.coworking_consumo_minimo_pen ?? 18);
+  const [coworkTolerancia, setCoworkTolerancia] = useState(negocio.coworking_tolerancia_min ?? 15);
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -975,6 +987,11 @@ export const AjustesSection: React.FC<AjustesSectionProps> = ({ negocio, onSaveA
         otp_requerido_login: otpLogin,
         otp_requerido_canje: otpCanje,
         texto_privacidad: privacidad.trim(),
+        yape_numero: yapeNumero.trim() || null,
+        yape_titular: yapeTitular.trim() || null,
+        coworking_activo: coworkingActivo,
+        coworking_consumo_minimo_pen: Math.max(5, Number(coworkMinimo) || 18),
+        coworking_tolerancia_min: Math.max(5, Number(coworkTolerancia) || 15),
       });
     } finally {
       setSaving(false);
@@ -1121,6 +1138,81 @@ export const AjustesSection: React.FC<AjustesSectionProps> = ({ negocio, onSaveA
             onChange={(e) => setPrivacidad(e.target.value)}
             className="w-full rounded-2xl bg-[#F3F6F4] p-3 text-xs text-[#14201E]"
           />
+        </div>
+      </section>
+
+      <section className="rounded-3xl bg-white p-6 border border-black/5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-bold text-[#14201E]">
+              Pagos Yape y Reservas Coworking (In-App)
+            </h3>
+            <p className="text-xs text-[#546560]">
+              El cliente ve este número Yape dentro de la app al hacer su consumo mínimo y adjunta su comprobante directo a Caja POS.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-2 rounded-xl bg-[#F3F6F4] px-3 py-2 cursor-pointer self-start">
+            <input
+              type="checkbox"
+              checked={coworkingActivo}
+              onChange={(e) => setCoworkingActivo(e.target.checked)}
+              className="w-4 h-4 accent-[#0F4C45]"
+            />
+            <span className="text-xs font-bold text-[#14201E]">Coworking activo</span>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-[#14201E] mb-1">
+              Celular Yape oficial
+            </label>
+            <input
+              type="text"
+              value={yapeNumero}
+              onChange={(e) => setYapeNumero(e.target.value)}
+              placeholder="987111222"
+              className="w-full rounded-xl bg-[#F3F6F4] px-3.5 py-2.5 text-xs font-mono font-bold min-h-[42px]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#14201E] mb-1">
+              Titular cuenta Yape
+            </label>
+            <input
+              type="text"
+              value={yapeTitular}
+              onChange={(e) => setYapeTitular(e.target.value)}
+              placeholder="Olivia Café Especialidad S.A.C."
+              className="w-full rounded-xl bg-[#F3F6F4] px-3.5 py-2.5 text-xs min-h-[42px]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#14201E] mb-1">
+              Consumo mín. base (S/)
+            </label>
+            <input
+              type="number"
+              step="0.5"
+              min={5}
+              value={coworkMinimo}
+              onChange={(e) => setCoworkMinimo(Number(e.target.value))}
+              className="w-full rounded-xl bg-[#F3F6F4] px-3.5 py-2.5 text-xs font-bold tabular-nums min-h-[42px]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-[#14201E] mb-1">
+              Tolerancia llegada (min)
+            </label>
+            <input
+              type="number"
+              min={5}
+              max={60}
+              value={coworkTolerancia}
+              onChange={(e) => setCoworkTolerancia(Number(e.target.value))}
+              className="w-full rounded-xl bg-[#F3F6F4] px-3.5 py-2.5 text-xs font-bold tabular-nums min-h-[42px]"
+            />
+          </div>
         </div>
 
         <div className="flex justify-end">

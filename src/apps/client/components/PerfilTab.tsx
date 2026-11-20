@@ -7,6 +7,7 @@ import {
   Cake,
   CheckCircle2,
   ExternalLink,
+  History,
   LogOut,
   MapPin,
   MessageCircle,
@@ -39,6 +40,7 @@ interface PerfilTabProps {
   ) => Promise<void>;
   onClaimMapsBonus: () => Promise<void>;
   onSignOut: () => Promise<void>;
+  onOpenHistorial?: () => void;
 }
 
 const MESES_PERU = [
@@ -64,6 +66,7 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
   onUpdateProfile,
   onClaimMapsBonus,
   onSignOut,
+  onOpenHistorial,
 }) => {
   const { negocio } = useTheme();
 
@@ -199,9 +202,21 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
           </div>
         </div>
 
-        <div className="inline-flex items-center gap-2 rounded-xl bg-[#FEF6E0] text-[#7A5600] px-3.5 py-2 text-xs font-bold self-start">
-          <Award className="w-4 h-4" />
-          <span>Nivel {cartilla.nivel}</span>
+        <div className="flex flex-wrap items-center gap-2 self-start">
+          {onOpenHistorial && (
+            <button
+              type="button"
+              onClick={onOpenHistorial}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] text-[#0F4C45] px-3.5 py-2 text-xs font-bold"
+            >
+              <History className="w-3.5 h-3.5" />
+              <span>Ver historial</span>
+            </button>
+          )}
+          <div className="inline-flex items-center gap-2 rounded-xl bg-[#FEF6E0] text-[#7A5600] px-3.5 py-2 text-xs font-bold">
+            <Award className="w-4 h-4" />
+            <span>Nivel {cartilla.nivel}</span>
+          </div>
         </div>
       </section>
 

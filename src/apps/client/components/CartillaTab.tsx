@@ -8,6 +8,8 @@ import {
   Copy,
   ExternalLink,
   Gift,
+  History,
+  Laptop,
   MapPin,
   RefreshCw,
   Share2,
@@ -34,6 +36,8 @@ interface CartillaTabProps {
   onRefreshQr: () => void;
   onRate: (stars: number, comment?: string) => Promise<void>;
   onClaimMapsBonus: () => Promise<void>;
+  onOpenEspacios?: () => void;
+  onOpenHistorial?: () => void;
 }
 
 export const CartillaTab: React.FC<CartillaTabProps> = ({
@@ -46,6 +50,8 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
   onRefreshQr,
   onRate,
   onClaimMapsBonus,
+  onOpenEspacios,
+  onOpenHistorial,
 }) => {
   const { negocio } = useTheme();
   const [highBrightness, setHighBrightness] = useState(true);
@@ -314,6 +320,55 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
           </div>
         </section>
       </div>
+
+      {/* ACCESOS RÁPIDOS: RESERVAR MESA COWORK + VER HISTORIAL */}
+      {(onOpenEspacios || onOpenHistorial) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {onOpenEspacios && negocio.coworking_activo !== false && (
+            <button
+              type="button"
+              onClick={onOpenEspacios}
+              className="rounded-2xl bg-white p-4 border border-black/5 shadow-sm flex items-center justify-between gap-3 text-left hover:bg-[#F7F9F8] transition"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-[#E8F1EE] text-[#0F4C45] flex items-center justify-center shrink-0">
+                  <Laptop className="w-5 h-5" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-[#14201E]">¿Tienes una reunión hoy?</p>
+                  <p className="text-[11px] text-[#546560]">
+                    Separa tu mesa cowork con café desde la app
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-lg bg-[#0F4C45] text-[#F2B632] px-2.5 py-1 text-[11px] font-bold shrink-0">
+                Reservar →
+              </span>
+            </button>
+          )}
+
+          {onOpenHistorial && (
+            <button
+              type="button"
+              onClick={onOpenHistorial}
+              className="rounded-2xl bg-white p-4 border border-black/5 shadow-sm flex items-center justify-between gap-3 text-left hover:bg-[#F7F9F8] transition"
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-[#FEF6E0] text-[#7A5600] flex items-center justify-center shrink-0">
+                  <History className="w-5 h-5" />
+                </span>
+                <div>
+                  <p className="text-xs font-bold text-[#14201E]">Historial de Sellos y Canjes</p>
+                  <p className="text-[11px] text-[#546560]">
+                    Revisa tus {cartilla.sellos_historicos} sellos acumulados
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-[#0F4C45] shrink-0">Ver →</span>
+            </button>
+          )}
+        </div>
+      )}
 
       {/* REFIERE A UN AMIGO Y GANAN AMBOS */}
       {negocio.referidos_activo !== false && (

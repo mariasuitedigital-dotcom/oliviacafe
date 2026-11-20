@@ -35,6 +35,64 @@ export interface CartaItem {
   orden: number;
 }
 
+export type EstadoReservaCoworking =
+  | 'pendiente_pago'
+  | 'yape_por_validar'
+  | 'confirmada'
+  | 'checkin'
+  | 'rechazada'
+  | 'cancelada';
+
+export interface ReservaPedidoItem {
+  item_id: string;
+  nombre: string;
+  cantidad: number;
+  precio: number;
+}
+
+export interface EspacioCoworking {
+  id: string;
+  negocio_id: string;
+  sede_id: string;
+  nombre: string;
+  capacidad: number;
+  descripcion: string;
+  equipamiento: string;
+  consumo_minimo_pen: number;
+  duracion_bloque_min: number;
+  hora_apertura: string;
+  hora_cierre: string;
+  activo: boolean;
+}
+
+export interface ReservaCoworking {
+  id: string;
+  negocio_id: string;
+  sede_id: string;
+  espacio_id: string;
+  espacio_nombre?: string;
+  sede_nombre?: string;
+  cliente_id: string;
+  cliente_nombre?: string;
+  cliente_celular?: string;
+  codigo_reserva: string;
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string;
+  personas: number;
+  motivo_reunion: string;
+  items_pedido: ReservaPedidoItem[];
+  total_pedido_pen: number;
+  estado: EstadoReservaCoworking;
+  yape_comprobante_base64: string | null;
+  yape_codigo_operacion: string | null;
+  mensaje_pos: string | null;
+  recordatorio_enviado: boolean;
+  validado_por_cajero_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Negocio {
   id: string;
   slug: string;
@@ -61,6 +119,11 @@ export interface Negocio {
   happy_hour_config?: HappyHourConfig;
   ticket_promedio_pen?: number;
   costo_premio_pen?: number;
+  yape_numero?: string | null;
+  yape_titular?: string | null;
+  coworking_activo?: boolean;
+  coworking_consumo_minimo_pen?: number;
+  coworking_tolerancia_min?: number;
   evolution_instance_name: string | null;
   evolution_status: string;
   whatsapp_contacto_numero: string | null;

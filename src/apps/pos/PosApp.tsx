@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import {
+  CalendarClock,
   CloudOff,
   Delete,
   Gift,
@@ -25,6 +26,7 @@ import { QrScannerModal } from '@/src/apps/pos/components/QrScannerModal';
 import { SellarTab } from '@/src/apps/pos/components/SellarTab';
 import { ColaTab } from '@/src/apps/pos/components/ColaTab';
 import { CanjesTab } from '@/src/apps/pos/components/CanjesTab';
+import { EspaciosPosTab } from '@/src/apps/pos/components/EspaciosPosTab';
 import { AppSplashScreen } from '@/src/shared/components/AppSplashScreen';
 import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
 import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
@@ -41,7 +43,7 @@ interface PairedDevice {
 const DEVICE_STORAGE_KEY = 'aitama_pos_paired_device';
 const INACTIVITY_TIMEOUT_MS = 5 * 60 * 1000; // Cierre automático 5 minutos
 
-type PosTab = 'sellar' | 'cola' | 'canjes';
+type PosTab = 'sellar' | 'espacios' | 'cola' | 'canjes';
 
 const PosWorkspace: React.FC = () => {
   const { negocio } = useTheme();
@@ -77,6 +79,8 @@ const PosWorkspace: React.FC = () => {
     scannedCoupon,
     activePromos,
     happyHourStatus,
+    espaciosCoworking,
+    reservasCoworking,
     searching,
     actionBusy,
     syncing,
@@ -90,9 +94,17 @@ const PosWorkspace: React.FC = () => {
     canjearPremio,
     canjearCupon,
     aplicarPromoDirecta,
+    confirmarReservaYape,
+    rechazarReservaYape,
+    checkinReservaCoworking,
+    liberarReservaCoworking,
     syncOfflineQueue,
     clearSelection,
   } = usePosWorkspace(posSession, supabaseReady);
+
+  const pendingYapeOrConfirmCount = reservasCoworking.filter(
+    (r) => r.estado === 'yape_por_validar' || r.estado === 'pendiente_pago' || r.estado === 'confirmada'
+  ).length;
 
   useEffect(() => {
     const handleUnlock = () => {
@@ -560,6 +572,19 @@ const PosWorkspace: React.FC = () => {
               />
             )}
 
+            {activeTab === 'espacios' && (
+              <EspaciosPosTab
+                negocio={negocio}
+                espacios={espaciosCoworking}
+                reservas={reservasCoworking}
+                actionBusy={actionBusy}
+                onConfirmarYape={confirmarReservaYape}
+                onObservarYape={rechazarReservaYape}
+                onCheckin={checkinReservaCoworking}
+                onLiberar={liberarReservaCoworking}
+              />
+            )}
+
             {activeTab === 'cola' && (
               <ColaTab
                 isOnline={isOnline}
@@ -588,12 +613,18 @@ const PosWorkspace: React.FC = () => {
           aria-label="Navegación de caja POS"
           className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-black/10 pwa-safe-bottom pwa-ui-noselect"
         >
-          <div className="max-w-lg mx-auto grid grid-cols-3 h-16">
+          <div className="max-w-lg mx-auto grid grid-cols-4 h-16">
             {[
               { id: 'sellar' as const, label: 'Sellar', icon: QrCode, badge: 0 },
               {
+                id: 'espacios' as const,
+                label: 'Mesas',
+                icon: CalendarClock,
+                badge: pendingYapeOrConfirmCount,
+              },
+              {
                 id: 'cola' as const,
-                label: 'Cola reciente',
+                label: 'Cola',
                 icon: ListChecks,
                 badge: pendingOps.length,
               },
