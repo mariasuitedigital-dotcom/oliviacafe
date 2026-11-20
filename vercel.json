@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/push/coworking-reminders",
-      "schedule": "*/5 * * * *"
-    }
-  ],
   "rewrites": [
     { "source": "/c/:path*", "destination": "/c/index.html" },
     { "source": "/caja/:path*", "destination": "/caja/index.html" },
