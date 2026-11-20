@@ -37,6 +37,7 @@ import {
   RecompensaSection,
 } from '@/src/apps/admin/components/RecompensaEquipoAjustesSections';
 import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
+import { AppSplashScreen } from '@/src/shared/components/AppSplashScreen';
 import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
 
 type AdminSection =
@@ -591,6 +592,7 @@ interface AdminAppProps {
 export default function AdminApp({ withAuthProvider = true }: AdminAppProps) {
   const inner = (
     <ThemeProvider negocioSlug="olivia">
+      {withAuthProvider && <AppSplashScreen appRole="admin" />}
       <BrowserRouter>
         <Routes>
           <Route path="/admin/*" element={<AdminWorkspace />} />

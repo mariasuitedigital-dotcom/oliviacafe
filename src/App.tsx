@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { AuthProvider, useAuth } from '@/src/shared/auth/AuthContext';
 import { ThemeProvider } from '@/src/shared/theme/ThemeProvider';
 import { PortalAccesoView } from '@/src/shared/components/PortalAccesoView';
-import { ClientSplashScreen } from '@/src/shared/components/ClientSplashScreen';
+import { AppSplashScreen, type SplashAppRole } from '@/src/shared/components/AppSplashScreen';
 import ClientApp from '@/src/apps/client/ClientApp';
 import PosApp from '@/src/apps/pos/PosApp';
 import AdminApp from '@/src/apps/admin/AdminApp';
@@ -17,13 +17,21 @@ const SingleProfileGateway: React.FC = () => {
     return null;
   }, [role, ownerDemoSession, posSession, clientSession]);
 
-  if (resolvedRole === 'owner') return <AdminApp withAuthProvider={false} />;
-  if (resolvedRole === 'cashier') return <PosApp withAuthProvider={false} />;
+  const splashRole: SplashAppRole =
+    resolvedRole === 'owner' ? 'admin' : resolvedRole === 'cashier' ? 'pos' : 'client';
 
   return (
     <>
-      <ClientSplashScreen />
-      {resolvedRole === 'customer' ? <ClientApp withAuthProvider={false} /> : <PortalAccesoView />}
+      <AppSplashScreen appRole={splashRole} />
+      {resolvedRole === 'owner' ? (
+        <AdminApp withAuthProvider={false} />
+      ) : resolvedRole === 'cashier' ? (
+        <PosApp withAuthProvider={false} />
+      ) : resolvedRole === 'customer' ? (
+        <ClientApp withAuthProvider={false} />
+      ) : (
+        <PortalAccesoView />
+      )}
     </>
   );
 };

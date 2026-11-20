@@ -25,6 +25,7 @@ import { QrScannerModal } from '@/src/apps/pos/components/QrScannerModal';
 import { SellarTab } from '@/src/apps/pos/components/SellarTab';
 import { ColaTab } from '@/src/apps/pos/components/ColaTab';
 import { CanjesTab } from '@/src/apps/pos/components/CanjesTab';
+import { AppSplashScreen } from '@/src/shared/components/AppSplashScreen';
 import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
 import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
 
@@ -647,6 +648,7 @@ export interface PosAppProps {
 export default function PosApp({ withAuthProvider = true }: PosAppProps) {
   const router = (
     <ThemeProvider negocioSlug="olivia">
+      {withAuthProvider && <AppSplashScreen appRole="pos" />}
       <BrowserRouter>
         <Routes>
           <Route path="/caja/*" element={<PosWorkspace />} />
