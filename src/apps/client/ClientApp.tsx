@@ -116,7 +116,6 @@ const ClientAuthAndShell: React.FC = () => {
         identity="Cliente"
         appShortTitle="Mi Cartilla"
         userLabel={cliente?.nombre || clientSession?.nombre || user?.phone || null}
-        onSignOut={signOut}
       />
 
       <main className="flex-1 w-full max-w-5xl mx-auto px-4 py-5 pb-24 space-y-5">

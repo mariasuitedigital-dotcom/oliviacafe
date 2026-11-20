@@ -82,6 +82,7 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
   const [testingAlert, setTestingAlert] = useState(false);
 
   const [confirmOptOut, setConfirmOptOut] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const notifSupported = typeof window !== 'undefined' && 'Notification' in window;
 
@@ -438,14 +439,36 @@ export const PerfilTab: React.FC<PerfilTabProps> = ({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => void onSignOut()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F3F6F4] hover:bg-red-50 hover:text-red-700 px-4 py-2.5 text-xs font-bold text-[#14201E] transition min-h-[40px]"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Cerrar sesión</span>
-          </button>
+          {confirmSignOut ? (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#FEF6E0] border border-[#F2B632]/40 px-3 py-2">
+              <span className="text-xs font-medium text-[#14201E]">
+                ¿Salir? Te pedirá tu celular al volver.
+              </span>
+              <button
+                type="button"
+                onClick={() => void onSignOut()}
+                className="rounded-lg bg-[#14201E] text-white px-2.5 py-1 text-[11px] font-bold"
+              >
+                Salir igual
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmSignOut(false)}
+                className="rounded-lg bg-white text-[#14201E] px-2.5 py-1 text-[11px] font-semibold"
+              >
+                Mantener sesión
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmSignOut(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F3F6F4] hover:bg-red-50 hover:text-red-700 px-4 py-2.5 text-xs font-bold text-[#14201E] transition min-h-[40px]"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Cambiar cuenta / Salir</span>
+            </button>
+          )}
         </div>
       </section>
     </div>
