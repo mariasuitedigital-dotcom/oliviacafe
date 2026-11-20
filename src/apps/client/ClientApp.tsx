@@ -7,6 +7,7 @@ import { AppHeader } from '@/src/shared/components/AppHeader';
 import { OfflineIndicator } from '@/src/shared/pwa/OfflineIndicator';
 import { PWAInstallBanner } from '@/src/shared/pwa/PWAInstallBanner';
 import { PortalAccesoView } from '@/src/shared/components/PortalAccesoView';
+import { ClientSplashScreen } from '@/src/shared/components/ClientSplashScreen';
 import { MarIaDeveloperFooter } from '@/src/shared/components/MarIaDeveloperFooter';
 import { RootProvisioningModal } from '@/src/apps/admin/components/RootProvisioningModal';
 import { useClientData } from '@/src/apps/client/hooks/useClientData';
@@ -225,10 +226,11 @@ const ClientAuthAndShell: React.FC = () => {
   );
 };
 
-const ClientSlugWrapper: React.FC = () => {
+const ClientSlugWrapper: React.FC<{ showSplash?: boolean }> = ({ showSplash = false }) => {
   const { negocioSlug = 'olivia' } = useParams<{ negocioSlug: string }>();
   return (
     <ThemeProvider negocioSlug={negocioSlug}>
+      {showSplash && <ClientSplashScreen />}
       <ClientAuthAndShell />
     </ThemeProvider>
   );
@@ -242,7 +244,10 @@ export default function ClientApp({ withAuthProvider = true }: ClientAppProps) {
   const router = (
     <BrowserRouter>
       <Routes>
-        <Route path="/c/:negocioSlug/*" element={<ClientSlugWrapper />} />
+        <Route
+          path="/c/:negocioSlug/*"
+          element={<ClientSlugWrapper showSplash={withAuthProvider} />}
+        />
         <Route path="/c/*" element={<Navigate to="/c/olivia" replace />} />
         <Route path="*" element={<Navigate to="/c/olivia" replace />} />
       </Routes>

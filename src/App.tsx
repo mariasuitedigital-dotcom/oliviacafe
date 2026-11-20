@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AuthProvider, useAuth } from '@/src/shared/auth/AuthContext';
 import { ThemeProvider } from '@/src/shared/theme/ThemeProvider';
 import { PortalAccesoView } from '@/src/shared/components/PortalAccesoView';
+import { ClientSplashScreen } from '@/src/shared/components/ClientSplashScreen';
 import ClientApp from '@/src/apps/client/ClientApp';
 import PosApp from '@/src/apps/pos/PosApp';
 import AdminApp from '@/src/apps/admin/AdminApp';
@@ -18,9 +19,13 @@ const SingleProfileGateway: React.FC = () => {
 
   if (resolvedRole === 'owner') return <AdminApp withAuthProvider={false} />;
   if (resolvedRole === 'cashier') return <PosApp withAuthProvider={false} />;
-  if (resolvedRole === 'customer') return <ClientApp withAuthProvider={false} />;
 
-  return <PortalAccesoView />;
+  return (
+    <>
+      <ClientSplashScreen />
+      {resolvedRole === 'customer' ? <ClientApp withAuthProvider={false} /> : <PortalAccesoView />}
+    </>
+  );
 };
 
 export default function App() {
