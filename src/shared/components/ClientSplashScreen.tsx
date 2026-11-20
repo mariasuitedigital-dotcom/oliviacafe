@@ -7,18 +7,29 @@ interface ClientSplashScreenProps {
   durationMs?: number;
 }
 
+function isInstalledPwaLaunch(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
 export const ClientSplashScreen: React.FC<ClientSplashScreenProps> = ({
   durationMs = 1450,
 }) => {
   const { negocio } = useTheme();
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState<boolean>(() => isInstalledPwaLaunch());
 
   useEffect(() => {
+    if (!visible) return;
     const timer = window.setTimeout(() => {
       setVisible(false);
     }, durationMs);
     return () => window.clearTimeout(timer);
-  }, [durationMs]);
+  }, [durationMs, visible]);
 
   const brandName = negocio?.nombre || 'Olivia Café';
 
