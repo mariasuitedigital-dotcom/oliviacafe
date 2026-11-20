@@ -7,7 +7,7 @@ import { defineConfig, type Plugin } from 'vite';
 import { injectManifest } from 'workbox-build';
 
 interface AppSwSpec {
-  id: 'client' | 'pos' | 'admin';
+  id: 'root' | 'client' | 'pos' | 'admin';
   scopePath: string;
   swSrc: string;
   swOutRel: string;
@@ -15,6 +15,13 @@ interface AppSwSpec {
 }
 
 const APP_SW_SPECS: AppSwSpec[] = [
+  {
+    id: 'root',
+    scopePath: '/',
+    swSrc: 'src/sw.ts',
+    swOutRel: 'sw.js',
+    globPatterns: ['index.html', 'assets/**/*.{js,css}', 'icons/client-*.{png,svg}', 'manifest.webmanifest'],
+  },
   {
     id: 'client',
     scopePath: '/c/',
@@ -58,7 +65,7 @@ function multiPwaInjectManifestPlugin(): Plugin {
               entryPoints: [path.resolve(rootDir, swMatch.swSrc)],
               bundle: true,
               write: false,
-              format: 'esm',
+              format: 'iife',
               platform: 'browser',
               define: {
                 'process.env.NODE_ENV': '"development"',
@@ -117,7 +124,7 @@ function multiPwaInjectManifestPlugin(): Plugin {
             entryPoints: [path.resolve(rootDir, spec.swSrc)],
             bundle: true,
             minify: true,
-            format: 'esm',
+            format: 'iife',
             platform: 'browser',
             outfile: bundledPath,
             define: {

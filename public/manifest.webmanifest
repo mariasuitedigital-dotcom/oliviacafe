@@ -1,0 +1,33 @@
+{
+  "id": "/",
+  "name": "Olivia Café",
+  "short_name": "Olivia",
+  "description": "Tu cartilla digital de lealtad y promociones en Olivia Café.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0F4C45",
+  "background_color": "#DCE3DE",
+  "lang": "es-PE",
+  "icons": [
+    {
+      "src": "/icons/client-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/client-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/client-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

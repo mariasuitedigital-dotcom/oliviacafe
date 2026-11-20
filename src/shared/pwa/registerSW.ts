@@ -1,6 +1,6 @@
 export async function registerAppSW(
-  swUrl: '/c/sw.js' | '/caja/sw.js' | '/admin/sw.js',
-  scope: '/c/' | '/caja/' | '/admin/'
+  swUrl: '/sw.js' | '/c/sw.js' | '/caja/sw.js' | '/admin/sw.js',
+  scope: '/' | '/c/' | '/caja/' | '/admin/'
 ): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     return null;
@@ -8,7 +8,6 @@ export async function registerAppSW(
   try {
     const registration = await navigator.serviceWorker.register(swUrl, {
       scope,
-      type: 'module',
       updateViaCache: 'none',
     });
     return registration;

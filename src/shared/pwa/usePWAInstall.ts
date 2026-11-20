@@ -1,96 +1,110 @@
 import { useCallback, useEffect, useState } from 'react';
 
-interface BeforeInstallPromptEvent extends Event {
+export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
 
-const SIM_INSTALLED_KEY = 'olivia_pwa_sim_installed';
-const SIM_EVENT_NAME = 'olivia-pwa-sim-change';
+// Captura global a nivel de módulo para no perder `beforeinstallprompt`
+// aunque se dispare antes de que el usuario inicie sesión o cambie de pantalla.
+let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+let globalInstalledFlag = false;
+const promptSubscribers = new Set<() => void>();
 
-function checkStandaloneOrSimulated(): boolean {
+function checkStandalone(): boolean {
   if (typeof window === 'undefined') return false;
-  const isStandalone =
+  return (
+    globalInstalledFlag ||
     window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-  if (isStandalone) return true;
-  try {
-    return sessionStorage.getItem(SIM_INSTALLED_KEY) === '1';
-  } catch {
-    return false;
-  }
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+  );
+}
+
+function notifySubscribers() {
+  promptSubscribers.forEach((cb) => cb());
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    e.preventDefault();
+    globalDeferredPrompt = e as BeforeInstallPromptEvent;
+    notifySubscribers();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    globalInstalledFlag = true;
+    globalDeferredPrompt = null;
+    notifySubscribers();
+  });
 }
 
 export function usePWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState<boolean>(() => checkStandaloneOrSimulated());
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(
+    () => globalDeferredPrompt
+  );
+  const [isInstalled, setIsInstalled] = useState<boolean>(() => checkStandalone());
   const [isIOS, setIsIOS] = useState<boolean>(false);
+  const [isInIframe, setIsInIframe] = useState<boolean>(false);
 
   useEffect(() => {
-    setIsInstalled(checkStandaloneOrSimulated());
+    const syncState = () => {
+      setDeferredPrompt(globalDeferredPrompt);
+      setIsInstalled(checkStandalone());
+    };
+
+    syncState();
+    promptSubscribers.add(syncState);
 
     const ua = window.navigator.userAgent.toLowerCase();
     setIsIOS(/iphone|ipad|ipod/.test(ua));
-
-    const onBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    const onAppInstalled = () => {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-    };
-
-    const onSimChange = () => {
-      setIsInstalled(checkStandaloneOrSimulated());
-    };
+    try {
+      setIsInIframe(window.self !== window.top);
+    } catch {
+      setIsInIframe(true);
+    }
 
     const mediaQuery = window.matchMedia('(display-mode: standalone)');
     const onDisplayModeChange = (e: MediaQueryListEvent) => {
-      if (e.matches) setIsInstalled(true);
+      if (e.matches) {
+        globalInstalledFlag = true;
+        setIsInstalled(true);
+      }
     };
 
-    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    window.addEventListener('appinstalled', onAppInstalled);
-    window.addEventListener(SIM_EVENT_NAME, onSimChange);
     mediaQuery.addEventListener('change', onDisplayModeChange);
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', onAppInstalled);
-      window.removeEventListener(SIM_EVENT_NAME, onSimChange);
+      promptSubscribers.delete(syncState);
       mediaQuery.removeEventListener('change', onDisplayModeChange);
     };
   }, []);
 
   const install = useCallback(async () => {
-    if (!deferredPrompt) return false;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-      return true;
+    const promptEvent = globalDeferredPrompt || deferredPrompt;
+    if (!promptEvent) return false;
+
+    try {
+      await promptEvent.prompt();
+      const { outcome } = await promptEvent.userChoice;
+      if (outcome === 'accepted') {
+        globalInstalledFlag = true;
+        globalDeferredPrompt = null;
+        setDeferredPrompt(null);
+        setIsInstalled(true);
+        notifySubscribers();
+        return true;
+      }
+    } catch {
+      return false;
     }
     return false;
   }, [deferredPrompt]);
 
-  const simulateInstall = useCallback(() => {
-    try {
-      sessionStorage.setItem(SIM_INSTALLED_KEY, '1');
-    } catch {
-      // Ignore storage errors
-    }
-    setIsInstalled(true);
-    window.dispatchEvent(new Event(SIM_EVENT_NAME));
-  }, []);
-
   return {
-    isInstallable: Boolean(deferredPrompt),
+    isInstallable: Boolean(deferredPrompt || globalDeferredPrompt),
     isInstalled,
     isIOS,
+    isInIframe,
     install,
-    simulateInstall,
   };
 }
