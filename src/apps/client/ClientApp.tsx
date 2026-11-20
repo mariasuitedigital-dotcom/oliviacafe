@@ -26,9 +26,9 @@ import { PerfilTab } from '@/src/apps/client/components/PerfilTab';
 type ClientTab = 'cartilla' | 'carta' | 'espacios' | 'promos' | 'historial' | 'perfil';
 
 function resolveTabFromPath(pathname: string): ClientTab {
-  if (pathname.includes('/carta')) return 'carta';
-  if (pathname.includes('/espacios')) return 'espacios';
   if (pathname.includes('/promos')) return 'promos';
+  if (pathname.includes('/carta') || pathname.includes('/catalogo')) return 'carta';
+  if (pathname.includes('/espacios')) return 'espacios';
   if (pathname.includes('/historial')) return 'historial';
   if (pathname.includes('/perfil')) return 'perfil';
   return 'cartilla';
@@ -362,18 +362,18 @@ const ClientAuthAndShell: React.FC = () => {
         <div className="max-w-lg mx-auto grid grid-cols-5 h-16">
           {[
             { id: 'cartilla' as const, label: 'Cartilla', icon: CreditCard, badge: 0 },
-            { id: 'carta' as const, label: 'Carta', icon: Coffee, badge: 0 },
-            {
-              id: 'espacios' as const,
-              label: 'Espacios',
-              icon: Laptop,
-              badge: activeReservasCount,
-            },
             {
               id: 'promos' as const,
               label: 'Promos',
               icon: Tag,
               badge: activeCuponesCount || promos.length,
+            },
+            { id: 'carta' as const, label: 'Catálogo', icon: Coffee, badge: 0 },
+            {
+              id: 'espacios' as const,
+              label: 'Espacios',
+              icon: Laptop,
+              badge: activeReservasCount,
             },
             { id: 'perfil' as const, label: 'Perfil', icon: User, badge: 0 },
           ].map((item) => {

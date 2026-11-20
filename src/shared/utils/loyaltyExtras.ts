@@ -106,6 +106,15 @@ export function evaluateHappyHour(
 
 const CARTA_LOCAL_PREFIX = 'olivia_carta_digital_v1_';
 
+const DEFAULT_ITEM_IMAGES: Record<string, string> = {
+  'carta-1': '/src/assets/images/aitama_reward_cup_1794847436322.jpg',
+  'carta-2': '/src/assets/images/olivia_v60_pour_1795156675193.jpg',
+  'carta-3': '/src/assets/images/olivia_cold_brew_1795156673696.jpg',
+  'carta-4': '/src/assets/images/aitama_cafe_hero_1794847435488.jpg',
+  'carta-5': '/src/assets/images/olivia_croissant_pastry_1795156674006.jpg',
+  'carta-6': '/src/assets/images/olivia_brunch_combo_1795156674325.jpg',
+};
+
 export function buildDefaultCartaItems(negocioId: string): CartaItem[] {
   return [
     {
@@ -115,7 +124,7 @@ export function buildDefaultCartaItems(negocioId: string): CartaItem[] {
       nombre: 'Flat White Doble Origen',
       descripcion: 'Doble ristretto 100% arábica de Villa Rica con leche texturizada sedosa.',
       precio: 13.5,
-      imagen_url: '/src/assets/images/aitama_reward_cup_1794847436322.jpg',
+      imagen_url: DEFAULT_ITEM_IMAGES['carta-1'],
       recomendado: true,
       maridaje: 'Ideal con Croissant de Mantequilla',
       disponible: true,
@@ -128,7 +137,7 @@ export function buildDefaultCartaItems(negocioId: string): CartaItem[] {
       nombre: 'V60 Filtrado de Altura',
       descripcion: 'Extracción manual con notas cítricas y cacao fino de Cusco.',
       precio: 15.0,
-      imagen_url: '/src/assets/images/aitama_cafe_hero_1794847435488.jpg',
+      imagen_url: DEFAULT_ITEM_IMAGES['carta-2'],
       recomendado: false,
       maridaje: 'Ideal con Galleta Chocochip',
       disponible: true,
@@ -141,7 +150,7 @@ export function buildDefaultCartaItems(negocioId: string): CartaItem[] {
       nombre: 'Cold Brew Citron',
       descripcion: 'Maceración en frío 18h con rodaja de naranja orgánica de Chanchamayo.',
       precio: 14.5,
-      imagen_url: '/src/assets/images/aitama_cafe_hero_1794847435488.jpg',
+      imagen_url: DEFAULT_ITEM_IMAGES['carta-3'],
       recomendado: true,
       maridaje: 'Ideal con Tartaleta de Limón',
       disponible: true,
@@ -154,7 +163,7 @@ export function buildDefaultCartaItems(negocioId: string): CartaItem[] {
       nombre: 'Iced Latte de Avena',
       descripcion: 'Espresso doble sobre hielo con bebida vegetal de avena cremosa.',
       precio: 15.5,
-      imagen_url: '/src/assets/images/aitama_reward_cup_1794847436322.jpg',
+      imagen_url: DEFAULT_ITEM_IMAGES['carta-4'],
       recomendado: false,
       maridaje: 'Ideal con Muffin de Arándanos',
       disponible: true,
@@ -167,7 +176,7 @@ export function buildDefaultCartaItems(negocioId: string): CartaItem[] {
       nombre: 'Croissant de Mantequilla',
       descripcion: 'Hojaldre francés horneado cada mañana, crujiente por fuera y aireado por dentro.',
       precio: 9.5,
-      imagen_url: '/src/assets/images/aitama_reward_cup_1794847436322.jpg',
+      imagen_url: DEFAULT_ITEM_IMAGES['carta-5'],
       recomendado: true,
       maridaje: 'Acompaña con Flat White o Cappuccino',
       disponible: true,
@@ -180,7 +189,7 @@ export function buildDefaultCartaItems(negocioId: string): CartaItem[] {
       nombre: 'Combo Mañana Olivia',
       descripcion: 'Flat White o Americano + Croissant de Mantequilla artesanal recién horneado.',
       precio: 19.9,
-      imagen_url: '/src/assets/images/aitama_reward_cup_1794847436322.jpg',
+      imagen_url: DEFAULT_ITEM_IMAGES['carta-6'],
       recomendado: true,
       maridaje: 'Suma sello en tu cartilla al instante',
       disponible: true,
@@ -194,7 +203,20 @@ export function readLocalCartaItems(negocioId: string): CartaItem[] {
     const raw = localStorage.getItem(`${CARTA_LOCAL_PREFIX}${negocioId}`);
     if (raw) {
       const parsed = JSON.parse(raw) as CartaItem[];
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item) => {
+          const upgraded = DEFAULT_ITEM_IMAGES[item.id];
+          if (
+            upgraded &&
+            (!item.imagen_url ||
+              item.imagen_url.includes('aitama_reward_cup') ||
+              item.imagen_url.includes('aitama_cafe_hero'))
+          ) {
+            return { ...item, imagen_url: upgraded };
+          }
+          return item;
+        });
+      }
     }
   } catch {
     // Ignore storage errors

@@ -1,13 +1,19 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Check,
   Clock,
   Coffee,
+  Croissant,
+  CupSoda,
   ExternalLink,
+  Heart,
+  Layers,
   Minus,
   Plus,
   Search,
   ShoppingBag,
   Sparkles,
+  Utensils,
 } from 'lucide-react';
 import type { CartaItem } from '@/src/types/database';
 import type { HappyHourEvaluation } from '@/src/shared/utils/loyaltyExtras';
@@ -19,6 +25,78 @@ interface CartaTabProps {
   negocioNombre: string;
 }
 
+const FAVS_STORAGE_KEY = 'olivia_carta_favoritos_v1';
+
+const CATEGORY_VISUALS: Record<
+  string,
+  {
+    image: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }
+> = {
+  'Café de Especialidad': {
+    image: '/src/assets/images/olivia_v60_pour_1795156675193.jpg',
+    icon: Coffee,
+  },
+  'Cold Brew & Fríos': {
+    image: '/src/assets/images/olivia_cold_brew_1795156673696.jpg',
+    icon: CupSoda,
+  },
+  'Pastelería Artesanal': {
+    image: '/src/assets/images/olivia_croissant_pastry_1795156674006.jpg',
+    icon: Croissant,
+  },
+  'Combos & Brunch': {
+    image: '/src/assets/images/olivia_brunch_combo_1795156674325.jpg',
+    icon: Utensils,
+  },
+};
+
+function resolveCategoryVisual(categoryName: string, fallbackItemImg?: string | null) {
+  const exact = CATEGORY_VISUALS[categoryName];
+  if (exact) return exact;
+
+  const lower = categoryName.toLowerCase();
+  if (lower.includes('frí') || lower.includes('frio') || lower.includes('cold') || lower.includes('iced')) {
+    return {
+      image: fallbackItemImg || '/src/assets/images/olivia_cold_brew_1795156673696.jpg',
+      icon: CupSoda,
+    };
+  }
+  if (lower.includes('pastel') || lower.includes('postre') || lower.includes('pan') || lower.includes('dulce')) {
+    return {
+      image: fallbackItemImg || '/src/assets/images/olivia_croissant_pastry_1795156674006.jpg',
+      icon: Croissant,
+    };
+  }
+  if (lower.includes('combo') || lower.includes('brunch') || lower.includes('pack')) {
+    return {
+      image: fallbackItemImg || '/src/assets/images/olivia_brunch_combo_1795156674325.jpg',
+      icon: Utensils,
+    };
+  }
+
+  return {
+    image: fallbackItemImg || '/src/assets/images/olivia_v60_pour_1795156675193.jpg',
+    icon: Coffee,
+  };
+}
+
+function resolveItemImage(item: CartaItem): string {
+  if (item.imagen_url && !item.imagen_url.includes('aitama_cafe_hero') && !item.imagen_url.includes('aitama_reward_cup')) {
+    return item.imagen_url;
+  }
+  const byId: Record<string, string> = {
+    'carta-1': '/src/assets/images/aitama_reward_cup_1794847436322.jpg',
+    'carta-2': '/src/assets/images/olivia_v60_pour_1795156675193.jpg',
+    'carta-3': '/src/assets/images/olivia_cold_brew_1795156673696.jpg',
+    'carta-4': '/src/assets/images/aitama_cafe_hero_1794847435488.jpg',
+    'carta-5': '/src/assets/images/olivia_croissant_pastry_1795156674006.jpg',
+    'carta-6': '/src/assets/images/olivia_brunch_combo_1795156674325.jpg',
+  };
+  return byId[item.id] || item.imagen_url || resolveCategoryVisual(item.categoria).image;
+}
+
 export const CartaTab: React.FC<CartaTabProps> = ({
   items,
   happyHourStatus,
@@ -28,16 +106,54 @@ export const CartaTab: React.FC<CartaTabProps> = ({
   const [selectedCat, setSelectedCat] = useState<string>('Todas');
   const [query, setQuery] = useState('');
   const [cart, setCart] = useState<Record<string, number>>({});
+  const [favorites, setFavorites] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(FAVS_STORAGE_KEY);
+      return raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
 
-  const categorias = useMemo(() => {
-    const set = new Set(items.map((i) => i.categoria));
-    return ['Todas', ...Array.from(set)];
-  }, [items]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(FAVS_STORAGE_KEY, JSON.stringify(favorites));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [favorites]);
+
+  const availableItems = useMemo(
+    () => items.filter((item) => item.disponible),
+    [items]
+  );
+
+  const categoryCards = useMemo(() => {
+    const grouped = new Map<string, { count: number; firstImg?: string | null }>();
+    availableItems.forEach((item) => {
+      const prev = grouped.get(item.categoria);
+      if (prev) {
+        prev.count += 1;
+      } else {
+        grouped.set(item.categoria, { count: 1, firstImg: item.imagen_url });
+      }
+    });
+
+    return Array.from(grouped.entries()).map(([name, info]) => {
+      const visual = resolveCategoryVisual(name, info.firstImg);
+      return {
+        name,
+        count: info.count,
+        image: visual.image,
+        icon: visual.icon,
+      };
+    });
+  }, [availableItems]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return items.filter((item) => {
-      if (!item.disponible) return false;
+    return availableItems.filter((item) => {
       if (selectedCat !== 'Todas' && item.categoria !== selectedCat) return false;
       if (!q) return true;
       return (
@@ -46,7 +162,7 @@ export const CartaTab: React.FC<CartaTabProps> = ({
         item.categoria.toLowerCase().includes(q)
       );
     });
-  }, [items, query, selectedCat]);
+  }, [availableItems, query, selectedCat]);
 
   const adjustQty = (id: string, delta: number) => {
     setCart((prev) => {
@@ -58,6 +174,13 @@ export const CartaTab: React.FC<CartaTabProps> = ({
       }
       return { ...prev, [id]: nextQty };
     });
+  };
+
+  const toggleFavorite = (id: string) => {
+    setFavorites((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   };
 
   const cartSummary = useMemo(() => {
@@ -86,12 +209,13 @@ export const CartaTab: React.FC<CartaTabProps> = ({
   const waUrl = `https://wa.me/${cleanWaDigits}?text=${waText}`;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
+      {/* Encabezado + Happy Hour */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#14201E]">Carta Digital</h1>
+          <h1 className="text-2xl font-bold text-[#14201E]">Catálogo</h1>
           <p className="text-xs text-[#4A5A56] mt-0.5">
-            Explora nuestras bebidas y pastelería artesanal, o arma tu pedido para recoger sin cola.
+            Elige tu categoría favorita o explora toda la carta para pedir sin cola.
           </p>
         </div>
 
@@ -113,128 +237,256 @@ export const CartaTab: React.FC<CartaTabProps> = ({
         )}
       </div>
 
-      {/* Buscador y categorías */}
-      <div className="space-y-3">
-        <div className="flex items-center rounded-2xl bg-white px-4 border border-black/10 focus-within:ring-2 focus-within:ring-[#0F4C45]">
-          <Search className="w-4 h-4 text-[#546560] mr-2.5 shrink-0" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar espresso, V60, cold brew o croissant..."
-            className="w-full bg-transparent py-3 text-xs font-medium text-[#14201E] placeholder:text-[#7B8B86] focus:outline-none min-h-[44px]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {categorias.map((cat) => {
-            const active = selectedCat === cat;
-            return (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setSelectedCat(cat)}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold whitespace-nowrap transition ${
-                  active
-                    ? 'bg-[#0F4C45] text-white'
-                    : 'bg-white text-[#4A5A56] border border-black/10 hover:bg-[#F3F6F4]'
-                }`}
-              >
-                {cat}
-              </button>
-            );
-          })}
-        </div>
+      {/* Buscador */}
+      <div className="flex items-center rounded-2xl bg-white px-4 border border-black/10 shadow-xs focus-within:ring-2 focus-within:ring-[#0F4C45]">
+        <Search className="w-4 h-4 text-[#546560] mr-2.5 shrink-0" />
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar espresso, V60, cold brew o croissant..."
+          className="w-full bg-transparent py-3 text-xs font-medium text-[#14201E] placeholder:text-[#7B8B86] focus:outline-none min-h-[44px]"
+        />
       </div>
 
-      {/* Productos */}
-      {filtered.length === 0 ? (
-        <div className="rounded-3xl bg-white p-8 text-center border border-black/5 space-y-2">
-          <Coffee className="w-8 h-8 text-[#0F4C45] mx-auto" />
-          <p className="text-sm font-bold text-[#14201E]">No encontramos productos con ese filtro</p>
-          <p className="text-xs text-[#546560]">Prueba otra categoría o limpia la búsqueda.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((item) => {
-            const qty = cart[item.id] || 0;
-            return (
-              <article
-                key={item.id}
-                className="rounded-3xl bg-white border border-black/5 p-5 shadow-sm flex flex-col justify-between gap-4"
+      {/* Bloque 1: Categorías visuales (estructura 2 columnas con foto full-bleed) */}
+      {categoryCards.length > 0 && (
+        <section className="space-y-3" aria-label="Categorías del catálogo">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-[#E8F1EE] text-[#0F4C45] flex items-center justify-center">
+                <Layers className="w-4 h-4" />
+              </span>
+              <h2 className="text-lg font-extrabold text-[#14201E]">Categorías</h2>
+            </div>
+
+            {selectedCat !== 'Todas' && (
+              <button
+                type="button"
+                onClick={() => setSelectedCat('Todas')}
+                className="rounded-xl bg-[#E8F1EE] hover:bg-[#DCE7E3] px-3 py-1.5 text-xs font-bold text-[#0F4C45] transition min-h-[34px]"
               >
-                <div className="space-y-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="rounded-lg bg-[#F3F6F4] px-2 py-0.5 text-[10px] font-bold text-[#0F4C45]">
-                        {item.categoria}
-                      </span>
-                      {item.recomendado && (
-                        <span className="inline-flex items-center gap-1 rounded-lg bg-[#FEF6E0] px-2 py-0.5 text-[10px] font-bold text-[#7A5600]">
-                          <Sparkles className="w-3 h-3" /> Favorito
-                        </span>
-                      )}
+                Ver todas
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {categoryCards.map((cat) => {
+              const Icon = cat.icon;
+              const isActive = selectedCat === cat.name;
+              const catImgKey = `cat-${cat.name}`;
+              return (
+                <button
+                  key={cat.name}
+                  type="button"
+                  onClick={() => setSelectedCat(isActive ? 'Todas' : cat.name)}
+                  aria-pressed={isActive}
+                  className={`group relative aspect-[4/3] w-full rounded-2xl sm:rounded-3xl overflow-hidden text-left shadow-sm transition-all active:scale-[0.98] ${
+                    isActive
+                      ? 'ring-2 ring-[#0F4C45] ring-offset-2 ring-offset-[var(--brand-tertiary)]'
+                      : 'border border-black/5 hover:shadow-md'
+                  }`}
+                >
+                  {imgErrors[catImgKey] ? (
+                    <div className="absolute inset-0 bg-[#0F4C45] flex items-center justify-center">
+                      <Icon className="w-10 h-10 text-white/25" />
                     </div>
-                    <span className="text-base font-bold tabular-nums text-[#0F4C45] whitespace-nowrap">
-                      S/ {item.precio.toFixed(2)}
-                    </span>
-                  </div>
-
-                  <div>
-                    <h2 className="text-base font-bold text-[#14201E]">{item.nombre}</h2>
-                    {item.descripcion && (
-                      <p className="text-xs text-[#546560] mt-1 leading-relaxed">
-                        {item.descripcion}
-                      </p>
-                    )}
-                  </div>
-
-                  {item.maridaje && (
-                    <p className="rounded-xl bg-[#F7F9F8] px-3 py-2 text-[11px] font-medium text-[#354440]">
-                      ☕ {item.maridaje}
-                    </p>
+                  ) : (
+                    <img
+                      src={cat.image}
+                      alt={cat.name}
+                      referrerPolicy="no-referrer"
+                      onError={() =>
+                        setImgErrors((prev) => ({ ...prev, [catImgKey]: true }))
+                      }
+                      className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
                   )}
-                </div>
 
-                <div className="pt-2 border-t border-black/5 flex items-center justify-between gap-2">
-                  {qty === 0 ? (
+                  {/* Gradiente oscuro inferior para legibilidad */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10" />
+
+                  {/* Badge icono superior izquierdo */}
+                  <span className="absolute top-2.5 left-2.5 inline-flex items-center justify-center w-8 h-7 rounded-xl bg-white/95 backdrop-blur-xs text-[#0F4C45] shadow-sm">
+                    <Icon className="w-4 h-4" />
+                  </span>
+
+                  {/* Indicador de categoría seleccionada */}
+                  {isActive && (
+                    <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-xl bg-[#0F4C45] text-[#F2B632] px-2 py-1 text-[10px] font-bold shadow-sm">
+                      <Check className="w-3 h-3" />
+                      Activo
+                    </span>
+                  )}
+
+                  {/* Texto inferior */}
+                  <div className="absolute inset-x-0 bottom-0 p-3 sm:p-3.5">
+                    <p className="text-white font-extrabold text-sm sm:text-base leading-tight drop-shadow-xs line-clamp-1">
+                      {cat.name}
+                    </p>
+                    <p className="text-[11px] font-medium text-white/85 flex items-center gap-1 mt-0.5">
+                      <span className="tabular-nums">
+                        {cat.count} {cat.count === 1 ? 'producto' : 'productos'}
+                      </span>
+                      <span>•</span>
+                      <span className="font-bold text-[#F2B632]">Ver →</span>
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Bloque 2: Barra de título de productos + grid 2 columnas */}
+      <section className="space-y-3.5" aria-label="Lista de productos">
+        <div className="flex items-center justify-between gap-2 pt-1">
+          <h2 className="text-sm sm:text-base font-extrabold tracking-wide uppercase text-[#14201E] truncate">
+            {selectedCat === 'Todas' ? 'TODOS LOS PRODUCTOS' : selectedCat.toUpperCase()}
+          </h2>
+          <span className="rounded-xl bg-[#E8F1EE] px-3 py-1 text-xs font-bold text-[#0F4C45] tabular-nums whitespace-nowrap shrink-0">
+            {filtered.length} {filtered.length === 1 ? 'producto' : 'productos'}
+          </span>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="rounded-3xl bg-white p-8 text-center border border-black/5 space-y-2">
+            <Coffee className="w-8 h-8 text-[#0F4C45] mx-auto" />
+            <p className="text-sm font-bold text-[#14201E]">
+              No encontramos productos con ese filtro
+            </p>
+            <p className="text-xs text-[#546560]">
+              Prueba seleccionando otra categoría o limpia el buscador.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {filtered.map((item) => {
+              const qty = cart[item.id] || 0;
+              const isFav = Boolean(favorites[item.id]);
+              const imageUrl = resolveItemImage(item);
+              const badgeLabel = item.recomendado
+                ? 'Recomendado'
+                : item.maridaje
+                  ? 'Con maridaje'
+                  : null;
+
+              return (
+                <article
+                  key={item.id}
+                  className="rounded-2xl sm:rounded-3xl bg-white border border-black/8 shadow-sm overflow-hidden flex flex-col justify-between transition hover:shadow-md"
+                >
+                  {/* Fotografía superior edge-to-edge */}
+                  <div className="relative aspect-[4/3] w-full bg-[#F3F6F4] overflow-hidden">
+                    {imgErrors[item.id] ? (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#E8F1EE] to-[#DCE7E3]">
+                        <Coffee className="w-9 h-9 text-[#0F4C45]/50" />
+                      </div>
+                    ) : (
+                      <img
+                        src={imageUrl}
+                        alt={item.nombre}
+                        referrerPolicy="no-referrer"
+                        onError={() =>
+                          setImgErrors((prev) => ({ ...prev, [item.id]: true }))
+                        }
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+
+                    {/* Etiqueta única superior izquierda */}
+                    {badgeLabel && (
+                      <span className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 rounded-xl bg-[#14201E]/75 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-1 shadow-xs max-w-[calc(100%-3.5rem)] truncate">
+                        <Sparkles className="w-3 h-3 text-[#F2B632] shrink-0" />
+                        <span className="truncate">{badgeLabel}</span>
+                      </span>
+                    )}
+
+                    {/* Botón corazón favorito superior derecho */}
                     <button
                       type="button"
-                      onClick={() => adjustQty(item.id, 1)}
-                      className="w-full rounded-xl bg-[#E8F1EE] hover:bg-[#DCE7E3] py-2.5 px-3 text-xs font-bold text-[#0F4C45] inline-flex items-center justify-center gap-1.5 min-h-[40px] transition"
+                      onClick={() => toggleFavorite(item.id)}
+                      aria-label={
+                        isFav
+                          ? `Quitar ${item.nombre} de favoritos`
+                          : `Guardar ${item.nombre} en favoritos`
+                      }
+                      aria-pressed={isFav}
+                      className="absolute top-2 right-2 w-9 h-9 rounded-full bg-white/95 backdrop-blur-xs shadow-sm flex items-center justify-center transition active:scale-90"
                     >
-                      <Plus className="w-4 h-4" />
-                      <span>Agregar al pedido</span>
+                      <Heart
+                        className={`w-4 h-4 transition-colors ${
+                          isFav
+                            ? 'text-rose-500 fill-rose-500'
+                            : 'text-[#546560]'
+                        }`}
+                      />
                     </button>
-                  ) : (
-                    <div className="w-full flex items-center justify-between gap-2 rounded-xl bg-[#0F4C45] p-1 text-white">
-                      <button
-                        type="button"
-                        onClick={() => adjustQty(item.id, -1)}
-                        aria-label={`Quitar ${item.nombre}`}
-                        className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center hover:bg-white/25"
+                  </div>
+
+                  {/* Contenido inferior: título, 2 líneas de descripción, precio + CTA */}
+                  <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between gap-2.5">
+                    <div>
+                      <h3
+                        title={item.nombre}
+                        className="text-xs sm:text-sm font-extrabold text-[#14201E] line-clamp-1"
                       >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="text-xs font-bold tabular-nums">
-                        {qty} en pedido · S/ {(qty * item.precio).toFixed(2)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => adjustQty(item.id, 1)}
-                        aria-label={`Agregar otro ${item.nombre}`}
-                        className="w-9 h-9 rounded-lg bg-[#F2B632] text-[#14201E] flex items-center justify-center"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
+                        {item.nombre}
+                      </h3>
+                      <p className="text-[11px] sm:text-xs text-[#546560] line-clamp-2 leading-snug mt-1">
+                        {item.descripcion ||
+                          item.maridaje ||
+                          'Preparado al momento con café de especialidad.'}
+                      </p>
                     </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+
+                    <div className="flex items-center justify-between gap-1.5 pt-1">
+                      <span className="text-sm sm:text-base font-extrabold tabular-nums text-[#0F4C45] whitespace-nowrap">
+                        S/ {item.precio.toFixed(2)}
+                      </span>
+
+                      {qty === 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => adjustQty(item.id, 1)}
+                          className="rounded-xl bg-[#0F4C45] hover:bg-[#0B3A34] text-white px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold inline-flex items-center gap-1 shrink-0 min-h-[34px] transition active:scale-95"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Agregar</span>
+                        </button>
+                      ) : (
+                        <div className="inline-flex items-center gap-1 rounded-xl bg-[#0F4C45] p-0.5 text-white shrink-0 min-h-[34px]">
+                          <button
+                            type="button"
+                            onClick={() => adjustQty(item.id, -1)}
+                            aria-label={`Quitar ${item.nombre}`}
+                            className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center hover:bg-white/25"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="min-w-[18px] text-center text-xs font-bold tabular-nums">
+                            {qty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => adjustQty(item.id, 1)}
+                            aria-label={`Agregar otro ${item.nombre}`}
+                            className="w-7 h-7 rounded-lg bg-[#F2B632] text-[#14201E] flex items-center justify-center"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* Barra resumen para pedido rápido por WhatsApp Pick-up */}
       {cartSummary.totalItems > 0 && (
