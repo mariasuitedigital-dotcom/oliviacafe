@@ -384,19 +384,22 @@ const ClientAuthAndShell: React.FC = () => {
                 key={item.id}
                 type="button"
                 onClick={() => handleTabChange(item.id)}
-                className={`relative flex flex-col items-center justify-center gap-1 text-[10px] sm:text-[11px] font-semibold transition ${
-                  active ? 'text-[var(--brand-primary)]' : 'text-[#6A7B76]'
+                className={`relative flex flex-col items-center justify-center gap-0.5 text-[11px] transition ${
+                  active ? 'text-[#0F4C45] font-black' : 'text-[#546560] font-bold hover:text-[#0F4C45]'
                 }`}
               >
-                <span className="relative">
-                  <Icon className="w-5 h-5" />
+                <span className="relative flex flex-col items-center">
+                  <Icon className={`w-5 h-5 transition-transform ${active ? 'scale-110 stroke-[2.4]' : 'stroke-[1.8]'}`} />
                   {item.badge > 0 && (
-                    <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-[#F2B632] text-[#14201E] text-[9px] font-bold flex items-center justify-center tabular-nums">
+                    <span className="absolute -top-1.5 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-[#F2B632] text-[#14201E] text-[9px] font-black flex items-center justify-center tabular-nums shadow-xs">
                       {item.badge}
                     </span>
                   )}
                 </span>
-                <span className="whitespace-nowrap">{item.label}</span>
+                <span className="whitespace-nowrap leading-tight mt-0.5">{item.label}</span>
+                {active && (
+                  <span className="w-1.5 h-1 rounded-full bg-[#0F4C45] mt-0.5" />
+                )}
               </button>
             );
           })}

@@ -11,8 +11,10 @@ import {
   History,
   Laptop,
   MapPin,
+  MessageCircle,
   RefreshCw,
   Share2,
+  Sparkles,
   Star,
   Sun,
   UserPlus,
@@ -270,47 +272,49 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
 
         {/* PASE RÁPIDO QR ROTATIVO 30s (5 cols desktop) */}
         <section
-          className={`lg:col-span-5 rounded-3xl p-6 shadow-sm border border-black/5 transition ${
+          className={`lg:col-span-5 rounded-3xl p-6 shadow-sm border border-black/8 transition ${
             highBrightness ? 'bg-white' : 'bg-[#F7F9F8]'
           }`}
         >
           <div className="flex items-center justify-between gap-2 mb-3">
             <div>
-              <h2 className="text-base font-bold text-[#14201E]">Pase Rápido de Caja</h2>
-              <p className="text-xs text-[#546560]">Muestra este código al barista</p>
+              <h2 className="text-base sm:text-lg font-black text-[#14201E] tracking-tight">
+                Pase Rápido de Caja
+              </h2>
+              <p className="text-xs text-[#44524E] font-medium">Muestra este código al barista para sellar</p>
             </div>
-            <span className="text-xs font-mono font-bold bg-[#F3F6F4] text-[#14201E] px-2.5 py-1 rounded-lg">
+            <span className="text-xs font-mono font-black bg-[#E8F1EE] text-[#0F4C45] px-3 py-1.5 rounded-xl border border-[#0F4C45]/20 shadow-xs tabular-nums">
               {cartilla.codigo_corto}
             </span>
           </div>
 
-          <div className="my-4 p-4 rounded-2xl bg-white border border-black/10 flex flex-col items-center justify-center">
+          <div className="my-4 p-4 sm:p-5 rounded-3xl bg-[#F7F9F8] border border-black/10 flex flex-col items-center justify-center shadow-inner">
             <QRCodeSVG
               value={qrPayload}
               size={184}
-              bgColor="#FFFFFF"
+              bgColor="#F7F9F8"
               fgColor="#0F4C45"
               level="M"
             />
           </div>
 
           <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="text-[#546560] tabular-nums">
-              Nuevo código en <strong className="text-[#0F4C45]">{qrState.secondsLeft}s</strong>
+            <span className="text-[#354440] font-semibold tabular-nums">
+              Código seguro: <strong className="text-sm font-mono font-black text-[#0F4C45]">{qrState.secondsLeft}s</strong>
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setHighBrightness((v) => !v)}
-                className="inline-flex items-center gap-1 rounded-xl bg-[#F3F6F4] px-2.5 py-1.5 text-xs font-semibold text-[#14201E] min-h-[36px]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3 py-2 text-xs font-bold text-[#14201E] min-h-[38px] transition active:scale-95 cursor-pointer"
               >
-                <Sun className="w-3.5 h-3.5 text-[#F2B632]" />
+                <Sun className="w-4 h-4 text-[#F2B632]" />
                 <span>{highBrightness ? 'Brillo máx.' : 'Normal'}</span>
               </button>
               <button
                 type="button"
                 onClick={onRefreshQr}
-                className="inline-flex items-center gap-1 rounded-xl bg-[#F3F6F4] px-2.5 py-1.5 text-xs font-semibold text-[#0F4C45] min-h-[36px]"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3 py-2 text-xs font-bold text-[#0F4C45] min-h-[38px] transition active:scale-95 cursor-pointer"
                 aria-label="Actualizar código QR"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -370,76 +374,108 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
         </div>
       )}
 
-      {/* REFIERE A UN AMIGO Y GANAN AMBOS */}
+      {/* REFIERE A UN AMIGO Y GANAN AMBOS (ESTILO GOLDEN TICKET / CUPÓN VIRAL) */}
       {negocio.referidos_activo !== false && (
-        <section className="rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-black/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-[#E8F1EE] text-[#0F4C45] flex items-center justify-center shrink-0">
-              <UserPlus className="w-5 h-5" />
+        <section className="rounded-3xl p-5 sm:p-6 shadow-md border-2 border-[#F2B632]/50 bg-gradient-to-br from-[#FFFDF7] via-[#FFF9EE] to-[#FDF1D5] relative overflow-hidden space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#14201E] text-[#F2B632] px-3.5 py-1 text-xs font-black tracking-wide uppercase shadow-xs">
+              <Gift className="w-3.5 h-3.5 text-[#F2B632]" />
+              <span>Gana +{sellosInvitador} {sellosInvitador === 1 ? 'Sello Gratis' : 'Sellos Gratis'}</span>
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base font-bold text-[#14201E]">
-                  Invita a un amigo y ganan ambos
-                </h2>
-                {(cliente.total_referidos_exitosos || 0) > 0 && (
-                  <span className="rounded-lg bg-[#FEF6E0] px-2 py-0.5 text-[11px] font-bold text-[#7A5600] tabular-nums">
-                    {cliente.total_referidos_exitosos}{' '}
-                    {cliente.total_referidos_exitosos === 1 ? 'referido' : 'referidos'}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-[#546560] mt-0.5 leading-relaxed">
-                Comparte tu código <strong>{cartilla.codigo_corto}</strong>. Cuando tu amigo visite el local por 1.ª vez, recibes{' '}
-                <strong>+{sellosInvitador} {sellosInvitador === 1 ? 'sello' : 'sellos'}</strong> y él{' '}
-                <strong>+{sellosInvitado} extra</strong>.
-              </p>
-            </div>
+
+            {(cliente.total_referidos_exitosos || 0) > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#F2B632] text-[#14201E] px-3 py-1 text-xs font-black tabular-nums shadow-xs">
+                <Sparkles className="w-3 h-3" />
+                <span>
+                  {cliente.total_referidos_exitosos}{' '}
+                  {cliente.total_referidos_exitosos === 1 ? 'amigo invitado' : 'amigos invitados'}
+                </span>
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => void handleCopyReferral()}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] px-3.5 py-2.5 text-xs font-bold text-[#14201E] min-h-[42px] whitespace-nowrap"
-            >
-              {copiedRef ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-[#0F4C45]" />
-                  <span>¡Copiado!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5 text-[#0F4C45]" />
-                  <span>Copiar link</span>
-                </>
-              )}
-            </button>
+          <div className="space-y-1">
+            <h2 className="text-lg sm:text-xl font-black text-[#14201E] tracking-tight">
+              Regala sellos a tus amigos y gana café gratis
+            </h2>
+            <p className="text-xs sm:text-sm text-[#44524E] font-medium leading-relaxed max-w-2xl">
+              Comparte tu enlace de invitación: cuando tu amigo visite Olivia Café por primera vez, él recibe{' '}
+              <strong className="text-[#0F4C45]">+{sellosInvitado} extra</strong> en su cartilla y tú ganas{' '}
+              <strong className="text-[#0F4C45]">+{sellosInvitador} {sellosInvitador === 1 ? 'sello de regalo' : 'sellos de regalo'}</strong> automáticamente.
+            </p>
+          </div>
 
-            <a
-              href={waShareUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-[#0F4C45] px-4 py-2.5 text-xs font-bold text-white min-h-[42px] whitespace-nowrap hover:opacity-95"
-            >
-              <Share2 className="w-3.5 h-3.5 text-[#F2B632]" />
-              <span>Invitar por WhatsApp</span>
-            </a>
+          {/* Bloque Cupón / Voucher con código grande y botones notorios */}
+          <div className="rounded-2xl bg-white/95 backdrop-blur-xs border-2 border-dashed border-[#F2B632] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+            <div className="space-y-0.5">
+              <span className="text-[11px] font-black uppercase tracking-wider text-[#7A5600]">
+                Tu código de embajador
+              </span>
+              <p className="font-mono text-2xl sm:text-3xl font-black tracking-wider text-[#0F4C45] tabular-nums">
+                {cartilla.codigo_corto}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => void handleCopyReferral()}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F3F6F4] hover:bg-[#E8F1EE] border border-black/10 px-4 py-3 text-xs sm:text-sm font-extrabold text-[#14201E] min-h-[46px] transition active:scale-95 shadow-xs cursor-pointer"
+              >
+                {copiedRef ? (
+                  <>
+                    <Check className="w-4 h-4 text-[#0F4C45]" />
+                    <span className="text-[#0F4C45]">¡Enlace copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4 text-[#0F4C45]" />
+                    <span>Copiar enlace</span>
+                  </>
+                )}
+              </button>
+
+              <a
+                href={waShareUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] hover:bg-[#20BD5A] px-5 py-3 text-xs sm:text-sm font-black text-white min-h-[46px] transition active:scale-95 shadow-md shadow-[#25D366]/25 whitespace-nowrap cursor-pointer"
+              >
+                <Share2 className="w-4 h-4 text-white" />
+                <span>Invitar por WhatsApp</span>
+              </a>
+            </div>
           </div>
         </section>
       )}
 
-      {/* ENCUESTA DE SATISFACCIÓN + RESEÑA GOOGLE MAPS */}
-      <section className="rounded-3xl bg-white p-6 shadow-sm border border-black/5">
+      {/* ENCUESTA DE SATISFACCIÓN + RESEÑA GOOGLE MAPS (MISIÓN CON RECOMPENSA) */}
+      <section className="rounded-3xl bg-white p-5 sm:p-6 shadow-sm border border-black/8 space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-1 border-b border-black/5">
+          <div className="inline-flex items-center gap-1.5 rounded-xl bg-[#FEF6E0] border border-[#F2B632]/50 px-3 py-1 text-xs font-black text-[#7A5600]">
+            <Sparkles className="w-3.5 h-3.5 text-[#F2B632]" />
+            <span>Misión de Lealtad · +10 Puntos de Regalo</span>
+          </div>
+
+          {mapsBonusClaimed && (
+            <span className="inline-flex items-center gap-1 rounded-xl bg-[#E8F1EE] text-[#0F4C45] px-2.5 py-1 text-xs font-black">
+              <Check className="w-3.5 h-3.5" />
+              <span>Bono reclamado ✓</span>
+            </span>
+          )}
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-bold text-[#14201E]">¿Cómo estuvo tu café hoy?</h2>
-            <p className="text-xs text-[#546560] mt-0.5">
-              Califica tu experiencia reciente en {negocio.nombre}
+            <h2 className="text-lg sm:text-xl font-black text-[#14201E]">
+              ¿Cómo estuvo tu café hoy?
+            </h2>
+            <p className="text-xs sm:text-sm text-[#4A5A56] font-medium mt-0.5">
+              Tu opinión nos ayuda a mantener la mejor taza. Califica con estrellas:
             </p>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {[1, 2, 3, 4, 5].map((star) => {
               const active = star <= (hoverStar || ratedToday || 0);
               return (
@@ -450,11 +486,13 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
                   onMouseLeave={() => setHoverStar(0)}
                   onClick={() => void handleStarClick(star)}
                   aria-label={`Calificar ${star} de 5 estrellas`}
-                  className="w-11 h-11 rounded-xl flex items-center justify-center transition hover:bg-[#FEF6E0]"
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center transition active:scale-90 hover:bg-[#FEF6E0] cursor-pointer"
                 >
                   <Star
-                    className={`w-6 h-6 transition ${
-                      active ? 'fill-[#F2B632] text-[#F2B632]' : 'text-[#CBD5CE]'
+                    className={`w-7 h-7 transition ${
+                      active
+                        ? 'fill-[#F2B632] text-[#F2B632] drop-shadow-xs'
+                        : 'text-[#D0DCD6]'
                     }`}
                   />
                 </button>
@@ -463,45 +501,58 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
           </div>
         </div>
 
-        {/* Si respondió 3 o menos: feedback privado al dueño */}
+        {/* Si calificó 1 a 3 estrellas: feedback privado de atención directa */}
         {ratedToday !== null && ratedToday <= 3 && !detractorSent && (
-          <form onSubmit={handleDetractorSubmit} className="mt-4 pt-4 border-t border-black/5 space-y-3">
-            <p className="text-xs font-semibold text-[#14201E]">
-              Lamentamos que no haya sido perfecto. Cuéntanos qué pasó (va directo y privado al dueño):
+          <form
+            onSubmit={handleDetractorSubmit}
+            className="p-4 rounded-2xl bg-[#FFF6F5] border border-red-200 space-y-3"
+          >
+            <p className="text-xs sm:text-sm font-bold text-[#8A1C14]">
+              Lamentamos que tu visita no haya sido perfecta. Cuéntanos qué pasó (va directo y privado al dueño para solucionarlo):
             </p>
             <textarea
               rows={2}
               value={detractorComment}
               onChange={(e) => setDetractorComment(e.target.value)}
-              placeholder="Ej. El café demoró un poco o llegó tibio..."
-              className="w-full rounded-xl bg-[#F3F6F4] p-3 text-xs text-[#14201E] focus:outline-none focus:ring-2 focus:ring-[#0F4C45]"
+              placeholder="Ej. El café demoró un poco o la temperatura no era la esperada..."
+              className="w-full rounded-xl bg-white p-3 text-xs sm:text-sm text-[#14201E] border border-black/10 focus:outline-none focus:ring-2 focus:ring-[#0F4C45]"
               required
             />
             <button
               type="submit"
-              className="rounded-xl bg-[#0F4C45] px-4 py-2 text-xs font-bold text-white min-h-[40px]"
+              className="rounded-xl bg-[#0F4C45] px-5 py-2.5 text-xs sm:text-sm font-bold text-white min-h-[42px] cursor-pointer"
             >
-              Enviar comentario privado
+              Enviar mensaje privado al dueño
             </button>
           </form>
         )}
 
         {detractorSent && (
-          <p className="mt-3 text-xs font-semibold text-[#0F4C45]">
-            Gracias por ayudarnos a mejorar. El dueño recibió tu mensaje privado.
+          <p className="rounded-2xl bg-[#E8F1EE] p-3 text-xs sm:text-sm font-bold text-[#0F4C45] flex items-center gap-2">
+            <Check className="w-4 h-4 shrink-0" />
+            <span>Gracias por tu franqueza. El dueño ha recibido tu mensaje privado para corregirlo.</span>
           </p>
         )}
 
-        {/* Invitación Google Maps (+10 puntos de bonificación) */}
-        <div className="mt-4 rounded-2xl bg-[#F3F6F4] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#FEF6E0] text-[#7A5600] flex items-center justify-center shrink-0">
-              <MapPin className="w-5 h-5" />
+        {/* TARJETA MISIÓN GOOGLE MAPS DESTACADA CON DISTINTIVO Y RECOMPENSA */}
+        <div className="rounded-2xl p-4 sm:p-5 border-2 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#F0F8F5] via-[#F7FAF9] to-[#E8F1EE] border-[#0F4C45]/25 shadow-xs">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-[#0F4C45] text-[#F2B632] flex items-center justify-center shrink-0 shadow-sm">
+              <MapPin className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-bold text-[#14201E]">Compartir en Google Maps</p>
-              <p className="text-xs font-semibold text-[#0F4C45]">
-                {mapsBonusClaimed ? '+10 puntos bonificados ✓' : '+10 puntos de bonificación'}
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm sm:text-base font-black text-[#14201E]">
+                  Compartir reseña en Google Maps
+                </p>
+                <span className="rounded-md bg-[#F2B632] px-2 py-0.5 text-[10px] font-black text-[#14201E] uppercase">
+                  +10 Puntos
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-[#44524E] font-medium mt-0.5 leading-snug">
+                {mapsBonusClaimed
+                  ? '¡Puntos ya acreditados! Gracias por recomendar a Olivia Café ante toda la comunidad.'
+                  : 'Regálanos 5 estrellas en Google Maps y sumas +10 puntos de bonificación al instante en tu cartilla.'}
               </p>
             </div>
           </div>
@@ -511,10 +562,14 @@ export const CartillaTab: React.FC<CartillaTabProps> = ({
             target="_blank"
             rel="noreferrer"
             onClick={() => void onClaimMapsBonus()}
-            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-white border border-black/10 px-4 py-2.5 text-xs font-bold text-[#14201E] hover:bg-[#E8F1EE] transition whitespace-nowrap min-h-[40px]"
+            className={`inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-xs sm:text-sm font-black transition active:scale-95 whitespace-nowrap min-h-[46px] shadow-sm ${
+              mapsBonusClaimed
+                ? 'bg-white border border-[#0F4C45]/30 text-[#0F4C45] hover:bg-[#E8F1EE]'
+                : 'bg-[#0F4C45] text-white hover:bg-[#0B3A34] shadow-md shadow-[#0F4C45]/20 cursor-pointer'
+            }`}
           >
-            <span>{mapsBonusClaimed ? 'Ver reseña' : 'Dejar reseña'}</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <span>{mapsBonusClaimed ? 'Ver mi reseña' : 'Dejar reseña y ganar +10 pts'}</span>
+            <ExternalLink className="w-4 h-4" />
           </a>
         </div>
       </section>

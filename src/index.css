@@ -12,7 +12,7 @@
 @layer base {
   html,
   body {
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--brand-tertiary);
     overscroll-behavior-y: auto;
     touch-action: manipulation;
