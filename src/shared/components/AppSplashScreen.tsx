@@ -351,7 +351,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
                 />
               </svg>
 
-              {/* Medallón central con trazado dorado artesanal de taza */}
+              {/* Medallón central con taza de café real artesanal y borde dorado */}
               <motion.div
                 initial={{ scale: 0.65, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -359,7 +359,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
                   duration: isClient ? 0.85 : 0.5,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="relative w-22 h-22 rounded-full bg-gradient-to-b from-[#135A51] to-[#0A352F] border border-[#F2B632]/55 shadow-2xl flex items-center justify-center overflow-hidden"
+                className="relative w-24 h-24 rounded-full bg-gradient-to-b from-[#135A51] to-[#0A352F] border-2 border-[#F2B632] shadow-2xl flex items-center justify-center overflow-hidden ring-4 ring-[#F2B632]/25"
               >
                 {negocio?.logo_url ? (
                   <img
@@ -368,91 +368,21 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"
                   />
+                ) : isClient ? (
+                  <img
+                    src="/src/assets/images/olivia_real_coffee_cup.jpg"
+                    alt="Café de especialidad Olivia"
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover scale-105"
+                  />
                 ) : (
-                  <svg
-                    viewBox="0 0 64 64"
-                    className="w-11 h-11"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    {/* Ondas de vapor dibujadas */}
-                    <motion.path
-                      d="M24 19 C22 15, 26 12, 24 8"
-                      stroke="#FFF3D1"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      initial={{ pathLength: 0, opacity: 0 }}
-                      animate={{ pathLength: 1, opacity: 0.9 }}
-                      transition={{ delay: 0.35, duration: isClient ? 0.8 : 0.45, ease: 'easeOut' }}
-                    />
-                    <motion.path
-                      d="M32 18 C30 13, 35 10, 33 6"
-                      stroke="#F2B632"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      initial={{ pathLength: 0, opacity: 0 }}
-                      animate={{ pathLength: 1, opacity: 1 }}
-                      transition={{ delay: 0.45, duration: isClient ? 0.85 : 0.45, ease: 'easeOut' }}
-                    />
-                    <motion.path
-                      d="M40 19 C38 15, 42 12, 40 8"
-                      stroke="#FFF3D1"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      initial={{ pathLength: 0, opacity: 0 }}
-                      animate={{ pathLength: 1, opacity: 0.9 }}
-                      transition={{ delay: 0.55, duration: isClient ? 0.8 : 0.45, ease: 'easeOut' }}
-                    />
-
-                    {/* Taza dibujada trazo a trazo en dorado */}
-                    <motion.path
-                      d="M15 26 H43 V39 C43 46.5 37 52 29 52 C21 52 15 46.5 15 39 V26 Z"
-                      stroke="#F2B632"
-                      strokeWidth="2.8"
-                      strokeLinejoin="round"
-                      initial={{ pathLength: 0, fill: 'rgba(242,182,50,0)' }}
-                      animate={{
-                        pathLength: 1,
-                        fill: ['rgba(242,182,50,0)', 'rgba(242,182,50,0)', 'rgba(242,182,50,0.16)'],
-                      }}
-                      transition={{
-                        delay: 0.2,
-                        duration: isClient ? 1.2 : 0.65,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                    />
-
-                    {/* Asa de la taza */}
-                    <motion.path
-                      d="M43 29 H47.5 C50.8 29 53 31.4 53 34.5 C53 37.6 50.8 40 47.5 40 H43"
-                      stroke="#F2B632"
-                      strokeWidth="2.8"
-                      strokeLinecap="round"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{
-                        delay: 0.65,
-                        duration: isClient ? 0.65 : 0.4,
-                        ease: 'easeOut',
-                      }}
-                    />
-
-                    {/* Platillo inferior */}
-                    <motion.path
-                      d="M13 55 H45"
-                      stroke="#FFF3D1"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      initial={{ pathLength: 0, opacity: 0 }}
-                      animate={{ pathLength: 1, opacity: 0.9 }}
-                      transition={{
-                        delay: 0.85,
-                        duration: isClient ? 0.55 : 0.35,
-                        ease: 'easeOut',
-                      }}
-                    />
-                  </svg>
+                  <div className="w-full h-full bg-[#0F4C45] flex items-center justify-center text-[#F2B632]">
+                    <RoleIcon className="w-10 h-10" />
+                  </div>
                 )}
+
+                {/* Sombra de viñeta interna suave */}
+                <div className="absolute inset-0 rounded-full ring-1 ring-inset ring-black/25 pointer-events-none" />
 
                 {/* Barrido de brillo metálico sobre el medallón */}
                 <motion.div
@@ -463,7 +393,7 @@ export const AppSplashScreen: React.FC<AppSplashScreenProps> = ({
                     duration: 0.95,
                     ease: 'easeInOut',
                   }}
-                  className="absolute inset-y-0 w-10 bg-gradient-to-r from-transparent via-white/35 to-transparent skew-x-[-20deg] pointer-events-none"
+                  className="absolute inset-y-0 w-12 bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-20deg] pointer-events-none"
                 />
               </motion.div>
 

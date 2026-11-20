@@ -499,8 +499,13 @@ export const PortalAccesoView: React.FC<PortalAccesoViewProps> = () => {
           <main className="flex-1 flex items-center justify-center px-4 py-8">
             <section className="w-full max-w-md rounded-3xl bg-white border border-black/10 p-6 sm:p-7 shadow-sm space-y-5">
               <div className="text-center space-y-2">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-[#0F4C45] text-[#F2B632] flex items-center justify-center border border-[#F2B632]/50 shadow-sm">
-                  <Coffee className="w-7 h-7" />
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-[#0F4C45] text-[#F2B632] flex items-center justify-center border-2 border-[#F2B632] shadow-sm overflow-hidden">
+                  <img
+                    src="/src/assets/images/olivia_real_coffee_cup.jpg"
+                    alt={negocio.nombre}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-[#0F4C45]">
                   {negocio.nombre} · Club de Sellos

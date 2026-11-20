@@ -64,10 +64,17 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C45] rounded-xl pr-2 touch-manipulation select-none"
           aria-label={negocio.nombre}
         >
-          <div className="w-9 h-9 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center shrink-0 border-2 border-[var(--brand-secondary)]/60">
+          <div className="w-9 h-9 rounded-full bg-[var(--brand-primary)] text-white flex items-center justify-center shrink-0 border-2 border-[var(--brand-secondary)]/60 overflow-hidden">
             {negocio.logo_url ? (
               <img
                 src={negocio.logo_url}
+                alt={negocio.nombre}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover rounded-full"
+              />
+            ) : identity === 'Cliente' ? (
+              <img
+                src="/src/assets/images/olivia_real_coffee_cup.jpg"
                 alt={negocio.nombre}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover rounded-full"
